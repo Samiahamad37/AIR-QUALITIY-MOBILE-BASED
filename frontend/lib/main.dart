@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const homepage(),
+      home: const HomePage(),
 
       routes: {
         '/recommendation': (context) => const Recommendation(),

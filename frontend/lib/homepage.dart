@@ -1,9 +1,11 @@
 
 
 import 'package:flutter/material.dart';
+import 'recommendation.dart';
+import 'Apidocs.dart';
 
-class homepage extends StatelessWidget {
-  const homepage({super.key});
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,21 +26,26 @@ class homepage extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             const Text(
-              "AirQuality DSM",
+              "AirQuality",
               style: TextStyle(color: Colors.black),
             ),
             const Spacer(),
-            _navItem("Home", true),
-            _navItem("Map View", false),
-            _navItem("API Docs", false),
+            _navItem(context, "Home", true, HomePage()),
+            _navItem(context, "Health Guidance", false, Recommendation()),
+            _navItem(context, "API Docs", false, ApiDocsPage()),
             const SizedBox(width: 20),
             ElevatedButton(
               onPressed: () {},
               child: const Text("Sign in"),
             )
+
+
+
           ],
         ),
       ),
+      
+      
 
       body: SingleChildScrollView(
         child: Column(
@@ -74,7 +81,7 @@ class homepage extends StatelessWidget {
                       // ❌ Failed state (like your image)
                       aqi == 0
                           ? const Text(
-                              "Failed to fetch",
+                              "loading...",
                               style: TextStyle(color: Colors.red),
                             )
                           : Text(
@@ -149,8 +156,15 @@ class homepage extends StatelessWidget {
   }
 
   // 🔹 NAV ITEM
-  static Widget _navItem(String title, bool active) {
-    return Padding(
+  static Widget _navItem(BuildContext context, String title, bool active, Widget page) {
+    return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => page),
+      );
+    },
+    child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Text(
         title,
@@ -159,7 +173,9 @@ class homepage extends StatelessWidget {
           fontWeight: active ? FontWeight.bold : FontWeight.normal,
         ),
       ),
+    ),
     );
+
   }
 
   // 🔹 INFO CARD
