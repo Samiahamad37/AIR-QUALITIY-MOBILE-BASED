@@ -6,6 +6,7 @@ router = DefaultRouter()
 router.register(r'', AirQualityAPIViewSet, basename='air-quality')
 
 urlpatterns = [
+    path('influx/', AirQualityAPIViewSet.as_view({'get': 'influx'}), name='influx-readings'),
     path('latest/', AirQualityAPIViewSet.as_view({'get': 'latest'}), name='latest-air-quality'),
     path('history/', AirQualityAPIViewSet.as_view({'get': 'history'}), name='air-quality-history'),
     path('prediction/', AirQualityAPIViewSet.as_view({'get': 'prediction'}), name='aqi-prediction'),

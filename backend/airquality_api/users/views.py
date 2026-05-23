@@ -88,7 +88,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=['put'], permission_classes=[IsAuthenticated])
-    def update(self, request):
+    def update_me(self, request):
         """Update user profile."""
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(profile, data=request.data, partial=True)

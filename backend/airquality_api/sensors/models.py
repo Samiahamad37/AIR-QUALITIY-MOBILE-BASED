@@ -1,5 +1,4 @@
 from django.db import models
-from django.contrib.gis.db import models as gis_models
 
 
 class Sensor(models.Model):
@@ -66,7 +65,7 @@ class SensorReading(models.Model):
         ordering = ['-timestamp']
         indexes = [
             models.Index(fields=['sensor', '-timestamp']),
-            models.Index(fields='-timestamp'),
+            models.Index(fields=['-timestamp']),
         ]
         verbose_name = 'Sensor Reading'
         verbose_name_plural = 'Sensor Readings'

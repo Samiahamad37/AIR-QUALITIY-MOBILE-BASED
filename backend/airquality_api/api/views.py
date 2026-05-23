@@ -7,12 +7,45 @@ from datetime import timedelta
 from airquality_api.sensors.models import Sensor, SensorReading, AQIPrediction, Alert
 from airquality_api.utils.aqi_calculator import AQICalculator
 from airquality_api.utils.prediction import PredictionService
+from airquality_api.utils.influxdb_service import InfluxDBService
 from .serializers import AirQualitySerializer, HealthRecommendationSerializer, AQIPredictionDataSerializer
 
 
 class AirQualityAPIViewSet(viewsets.ViewSet):
     """Air quality API endpoints for mobile app."""
     permission_classes = [AllowAny]
+
+    @action(detail=False, methods=['get'])
+    def influx(self, request):
+        """Fetch sensor readings from InfluxDB (TTN devices or legacy sensor_id)."""
+        device_id = (
+            request.query_params.get('device_id')
+            or request.query_params.get('sensor_id')
+            or 'lands-building'
+        )
+        hours = int(request.query_params.get('hours', 24))
+        list_devices = request.query_params.get('list_devices', '').lower() in (
+            '1', 'true', 'yes',
+        )
+
+        svc = InfluxDBService()
+        try:
+            payload = {
+                'device_id': device_id,
+                'hours': hours,
+            }
+            if list_devices:
+                payload['devices'] = svc.list_devices(hours=hours)
+            else:
+                readings = svc.query_recent_readings(device_id, hours=hours)
+                payload.update({
+                    'count': len(readings),
+                    'latest': svc.query_latest_reading(device_id),
+                    'readings': readings,
+                })
+            return Response(payload)
+        finally:
+            svc.close()
 
     @action(detail=False, methods=['get'])
     def latest(self, request):
