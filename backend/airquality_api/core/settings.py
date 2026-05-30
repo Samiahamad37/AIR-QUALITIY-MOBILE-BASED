@@ -131,10 +131,20 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 50,
 }
 
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:59885'
+# # CORS Configuration
+# CORS_ALLOWED_ORIGINS = [
+#     'http://localhost:59885'
+# ]
+
+# For development - allow all localhost ports
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:\d+$",
+    r"^http://127\.0\.0\.1:\d+$",
 ]
+
+
+
+
 
 CORS_ALLOW_CREDENTIALS = True
 
