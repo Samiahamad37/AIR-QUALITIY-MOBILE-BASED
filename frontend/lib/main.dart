@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app_theme.dart';
 import 'screens.dart';
+import 'health_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +16,7 @@ class AirQualityApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AirWatch',
+      title: 'AirQuality',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       home: const MainShell(),
@@ -37,7 +38,7 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const _PlaceholderScreen(label: 'Forecast', icon: Icons.show_chart_rounded),
-    const _PlaceholderScreen(label: 'Health', icon: Icons.favorite_border_rounded),
+    const HealthScreen(),
     const _PlaceholderScreen(label: 'Map', icon: Icons.map_outlined),
   ];
 
