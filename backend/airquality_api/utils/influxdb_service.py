@@ -372,3 +372,11 @@ class InfluxDBService:
             self._write_api.close()
             self._write_api = None
         self.client.close()
+
+
+
+    def __enter__(self):
+      return self
+
+    def __exit__(self, *args):
+      self.close()
