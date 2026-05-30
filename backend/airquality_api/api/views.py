@@ -2,6 +2,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from airquality_api.utils.influxdb_service import InfluxDBService
+from airquality_api.utils.aqi_calculator import AQICalculator
 from rest_framework.permissions import AllowAny
 
 
@@ -160,3 +161,53 @@ class AirQualityAPIViewSet(viewsets.ViewSet):
             'hours': hours,
             'pollutants': result,
         })
+    from airquality_api.utils.aqi_calculator import AQICalculator
+
+    @action(detail=False, methods=['get'])
+    def device_aqi(self, request):
+        """Real-time AQI calculated from latest device reading."""
+        device_id = request.query_params.get('device_id')
+
+        if not device_id:
+           return Response({'detail': 'device_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if device_id not in ALLOWED_DEVICES:
+           return Response({'detail': 'Device not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        svc = InfluxDBService()
+        try:
+           reading = svc.query_latest_reading(device_id)
+        finally:
+          svc.close()
+
+        if not reading:
+            return Response({'detail': 'No data found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Calculate AQI from available pollutants
+        aqi, category = AQICalculator.calculate_overall_aqi(
+        no2=reading.get('nox'),
+        pm25=reading.get('pm25'),
+        )
+
+        color = AQICalculator.get_color_for_aqi(aqi or 0)
+        recommendations = AQICalculator.get_recommendations(aqi or 0)
+
+        return Response({
+        'device_id': device_id,
+        'timestamp': reading['timestamp'],
+        'aqi': aqi,
+        'category': category,
+        'color': color,
+        'recommendations': recommendations,
+        'pollutants': {
+            'co2': reading.get('co2'),
+            'nox': reading.get('nox'),
+            'voc': reading.get('voc'),
+            'pm25': reading.get('pm25'),
+            'pm10': reading.get('pm10'),
+        },
+        'environment': {
+            'temperature': reading.get('temperature'),
+            'humidity': reading.get('humidity'),
+            'pressure': reading.get('pressure'),
+        }
+    })
