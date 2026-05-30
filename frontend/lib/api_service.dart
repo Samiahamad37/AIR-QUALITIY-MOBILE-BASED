@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 // iOS simulator     → 127.0.0.1:8000
 // Real device       → your machine's local IP e.g. 192.168.1.x:8000
 
-const String _baseUrl = 'http://10.0.2.2:8000/api/air-quality';
+const String _baseUrl = 'http://localhost:8000/api/air-quality';
 const Duration _timeout = Duration(seconds: 30);
 
 const List<String> allowedDevices = ['lands-building', 'planing-building'];
