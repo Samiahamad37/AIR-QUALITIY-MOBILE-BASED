@@ -1,17 +1,10 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from .views import AirQualityAPIViewSet
 
-router = DefaultRouter()
-router.register(r'', AirQualityAPIViewSet, basename='air-quality')
-
 urlpatterns = [
-    path('influx/', AirQualityAPIViewSet.as_view({'get': 'influx'}), name='influx-readings'),
-    path('latest/', AirQualityAPIViewSet.as_view({'get': 'latest'}), name='latest-air-quality'),
-    path('history/', AirQualityAPIViewSet.as_view({'get': 'history'}), name='air-quality-history'),
-    path('prediction/', AirQualityAPIViewSet.as_view({'get': 'prediction'}), name='aqi-prediction'),
-    path('alerts/', AirQualityAPIViewSet.as_view({'get': 'alerts'}), name='active-alerts'),
-    path('recommendations/', AirQualityAPIViewSet.as_view({'get': 'recommendations'}), name='health-recommendations'),
-    path('nearby-sensors/', AirQualityAPIViewSet.as_view({'get': 'nearby_sensors'}), name='nearby-sensors'),
-    path('subscribe-alerts/', AirQualityAPIViewSet.as_view({'post': 'subscribe_alerts'}), name='subscribe-alerts'),
+    path('devices/', AirQualityAPIViewSet.as_view({'get': 'devices'}), name='devices'),
+    path('device/latest/', AirQualityAPIViewSet.as_view({'get': 'device_latest'}), name='device-latest'),
+    path('device/readings/', AirQualityAPIViewSet.as_view({'get': 'device_readings'}), name='device-readings'),
+    path('device/history/', AirQualityAPIViewSet.as_view({'get': 'device_history'}), name='device-history'),
+    path('device/pollutants/', AirQualityAPIViewSet.as_view({'get': 'device_all_pollutants'}), name='device-all-pollutants'),
 ]
