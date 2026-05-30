@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'app_theme.dart';
 import 'screens.dart';
 import 'health_screen.dart';
+import 'map_screen.dart';
+import 'screen2.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,9 +39,9 @@ class _MainShellState extends State<MainShell> {
   // Screens will be added as we build each one
   final List<Widget> _screens = [
     const HomeScreen(),
-    const _PlaceholderScreen(label: 'Forecast', icon: Icons.show_chart_rounded),
+    const ForecastScreen(),
     const HealthScreen(),
-    const _PlaceholderScreen(label: 'Map', icon: Icons.map_outlined),
+    const MapScreen()
   ];
 
   @override
