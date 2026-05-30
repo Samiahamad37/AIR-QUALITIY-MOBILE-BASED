@@ -33,9 +33,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -132,11 +132,9 @@ REST_FRAMEWORK = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://localhost:8000,http://localhost:19006',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:59885'
+]
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -163,8 +161,8 @@ SIMPLE_JWT = {
 INFLUXDB_CONFIG = {
     'url': config('INFLUXDB_URL', default='http://localhost:8086'),
     'token': config('INFLUXDB_TOKEN', default='your-token'),
-    'org': config('INFLUXDB_ORG', default='airquality'),
-    'bucket': config('INFLUXDB_BUCKET', default='sensors'),
+    'org': config('INFLUXDB_ORG', default='myorg'),
+    'bucket': config('INFLUXDB_BUCKET', default='mybucket'),
 }
 
 # Celery Configuration
