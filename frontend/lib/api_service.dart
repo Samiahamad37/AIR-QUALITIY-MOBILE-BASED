@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 // Real device       → your machine's local IP e.g. 192.168.1.x:8000
 
 const String _baseUrl = 'http://10.0.2.2:8000/api/air-quality';
-const Duration _timeout = Duration(seconds: 15);
+const Duration _timeout = Duration(seconds: 30);
 
 const List<String> allowedDevices = ['lands-building', 'planing-building'];
 const String defaultDevice = 'lands-building';
@@ -27,21 +27,30 @@ class ApiException implements Exception {
 
 Future<dynamic> _get(String path, [Map<String, String>? params]) async {
   final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: params);
-  final res = await http
-      .get(uri, headers: {'Accept': 'application/json'})
-      .timeout(_timeout);
-
-  if (res.statusCode >= 200 && res.statusCode < 300) {
-    return jsonDecode(res.body);
-  }
-
-  dynamic body;
+  print('>>> Requesting: $uri');
+  
   try {
-    body = jsonDecode(res.body);
-  } catch (_) {
-    body = {'error': res.reasonPhrase ?? 'Unknown error'};
+    final res = await http
+        .get(uri, headers: {'Accept': 'application/json'})
+        .timeout(_timeout);
+
+    print('>>> Response status: ${res.statusCode}');
+    
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body);
+    }
+
+    dynamic body;
+    try {
+      body = jsonDecode(res.body);
+    } catch (_) {
+      body = {'error': res.reasonPhrase ?? 'Unknown error'};
+    }
+    throw ApiException(res.statusCode, body['detail'] ?? body['error'] ?? 'Unknown error');
+  } catch (e) {
+    print('>>> Request failed: $e');
+    rethrow;
   }
-  throw ApiException(res.statusCode, body['detail'] ?? body['error'] ?? 'Unknown error');
 }
 
 // ─── API Service ──────────────────────────────────────────────────────────────
