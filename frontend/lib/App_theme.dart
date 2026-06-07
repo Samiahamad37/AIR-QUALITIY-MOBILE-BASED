@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppColors {
   // AQI level colors
@@ -43,4 +44,56 @@ class AppTheme {
           elevation: 0,
         ),
       );
+
+  static ThemeData get light => ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: AppColors.surface,
+        fontFamily: 'SF Pro Display',
+        colorScheme: const ColorScheme.light(
+          primary: AppColors.good,
+          surface: AppColors.surface,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+      );
+}
+
+class ThemeNotifier extends ChangeNotifier {
+  static const _prefKey = 'is_dark_theme';
+  ThemeMode _mode = ThemeMode.dark;
+
+  ThemeMode get themeMode => _mode;
+  bool get isDark => _mode == ThemeMode.dark;
+
+  void toggleTheme() {
+    _mode = isDark ? ThemeMode.light : ThemeMode.dark;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  void setDark(bool dark) {
+    _mode = dark ? ThemeMode.dark : ThemeMode.light;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
+  Future<void> loadTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isDarkPref = prefs.getBool(_prefKey) ?? true;
+      _mode = isDarkPref ? ThemeMode.dark : ThemeMode.light;
+      notifyListeners();
+    } catch (_) {
+      // ignore errors and keep default
+    }
+  }
+
+  Future<void> _saveToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, isDark);
+    } catch (_) {}
+  }
 }
