@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'app_theme.dart';
 import 'screens.dart';
 import 'health_screen.dart';
 import 'map_screen.dart';
 import 'screen2.dart';
+import 'setting.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  // Only set orientation on non-web platforms
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  }
+
   runApp(const AirQualityApp());
 }
 
@@ -21,6 +28,8 @@ class AirQualityApp extends StatelessWidget {
       title: 'AirQuality',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.dark,
       home: const MainShell(),
     );
   }
@@ -41,7 +50,8 @@ class _MainShellState extends State<MainShell> {
     const HomeScreen(),
     const ForecastScreen(),
     const HealthScreen(),
-    const MapScreen()
+    const MapScreen(),
+    const SettingsScreen()
   ];
 
   @override
@@ -49,6 +59,7 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: IndexedStack(
+        
         index: _currentIndex,
         children: _screens,
       ),
@@ -62,12 +73,14 @@ class _MainShellState extends State<MainShell> {
       _NavItem(icon: Icons.show_chart_rounded, label: 'Forecast'),
       _NavItem(icon: Icons.favorite_border_rounded, label: 'Health'),
       _NavItem(icon: Icons.map_outlined, label: 'Map'),
+      _NavItem(icon: Icons.settings, label: 'Settings'),
     ];
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.bgCard,
-        border: Border(top: BorderSide(color: AppColors.border.withOpacity(0.5))),
+        border:
+            Border(top: BorderSide(color: AppColors.border.withOpacity(0.5))),
       ),
       child: SafeArea(
         top: false,
@@ -88,7 +101,8 @@ class _MainShellState extends State<MainShell> {
                       children: [
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
                           decoration: BoxDecoration(
                             color: isActive
                                 ? const Color(0xFF4ADE80).withOpacity(0.12)
@@ -111,7 +125,8 @@ class _MainShellState extends State<MainShell> {
                             color: isActive
                                 ? const Color(0xFF4ADE80)
                                 : AppColors.textMuted,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight:
+                                isActive ? FontWeight.w600 : FontWeight.w400,
                           ),
                         ),
                       ],
@@ -121,35 +136,6 @@ class _MainShellState extends State<MainShell> {
               );
             }).toList(),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Placeholder for screens not yet built ────────────────────────────────────
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String label;
-  final IconData icon;
-
-  const _PlaceholderScreen({required this.label, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgDark,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48, color: AppColors.textMuted),
-            const SizedBox(height: 12),
-            Text(
-              '$label coming next...',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
-            ),
-          ],
         ),
       ),
     );
