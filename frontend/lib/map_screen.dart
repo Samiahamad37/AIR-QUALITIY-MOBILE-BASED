@@ -18,6 +18,7 @@ class _DeviceLocation {
     required this.deviceId,
     required this.label,
     required this.position,
+
   });
 }
 
@@ -56,10 +57,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
     try {
       for (final device in _devices) {
         final data = await api.fetchDeviceAqi(deviceId: device.deviceId);
@@ -67,16 +65,14 @@ class _MapScreenState extends State<MapScreen> {
       }
       setState(() => _loading = false);
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
   Color _aqiColor(int aqi) => getAqiLevel(aqi).color;
 
-  int _getAqi(_DeviceLocation d) => (d.aqiData?['aqi'] as num?)?.toInt() ?? 0;
+  int _getAqi(_DeviceLocation d) =>
+      (d.aqiData?['aqi'] as num?)?.toInt() ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +82,7 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: AppColors.bgDark,
         body: Stack(
           children: [
+
             // ── Map ────────────────────────────────────────────────
             FlutterMap(
               mapController: _mapController,
@@ -190,9 +187,7 @@ class _MapScreenState extends State<MapScreen> {
 
             // ── Top Bar ────────────────────────────────────────────
             Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
+              top: 0, left: 0, right: 0,
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -216,36 +211,26 @@ class _MapScreenState extends State<MapScreen> {
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white)),
-                        Row(
-                          children: [
-                            IconButton(
-                              onPressed: () {},
-                              icon: const Icon(Icons.dark_mode),
-                              color: AppColors.textSecondary,
+                        GestureDetector(
+                          onTap: _loadData,
+                          child: Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.bgCard.withOpacity(0.9),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.border),
                             ),
-                            GestureDetector(
-                              onTap: _loadData,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgCard.withOpacity(0.9),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: _loading
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(8),
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.good),
-                                      )
-                                    : const Icon(Icons.refresh_rounded,
-                                        size: 18,
-                                        color: AppColors.textSecondary),
-                              ),
-                            ),
-                          ],
+                            child: _loading
+                                ? const Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.good),
+                                  )
+                                : const Icon(Icons.refresh_rounded,
+                                    size: 18,
+                                    color: AppColors.textSecondary),
+                          ),
                         ),
                       ],
                     ),
@@ -256,8 +241,7 @@ class _MapScreenState extends State<MapScreen> {
 
             // ── Legend ─────────────────────────────────────────────
             Positioned(
-              top: 90,
-              right: 16,
+              top: 90, right: 16,
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -276,11 +260,9 @@ class _MapScreenState extends State<MapScreen> {
                     const SizedBox(height: 6),
                     _legendItem(AppColors.good, 'Good (0-50)'),
                     _legendItem(AppColors.moderate, 'Moderate (51-100)'),
-                    _legendItem(
-                        AppColors.sensitiveGroups, 'Sensitive (101-150)'),
+                    _legendItem(AppColors.sensitiveGroups, 'Sensitive (101-150)'),
                     _legendItem(AppColors.unhealthy, 'Unhealthy (151-200)'),
-                    _legendItem(
-                        AppColors.veryUnhealthy, 'Very Unhealthy (201+)'),
+                    _legendItem(AppColors.veryUnhealthy, 'Very Unhealthy (201+)'),
                   ],
                 ),
               ),
@@ -289,9 +271,7 @@ class _MapScreenState extends State<MapScreen> {
             // ── Bottom Sheet (selected device) ─────────────────────
             if (_selected != null)
               Positioned(
-                bottom: 80,
-                left: 16,
-                right: 16,
+                bottom: 80, left: 16, right: 16,
                 child: _DeviceCard(
                   device: _selected!,
                   onClose: () => setState(() => _selected = null),
@@ -301,9 +281,7 @@ class _MapScreenState extends State<MapScreen> {
             // ── Error ──────────────────────────────────────────────
             if (_error != null)
               Positioned(
-                bottom: 100,
-                left: 16,
-                right: 16,
+                bottom: 100, left: 16, right: 16,
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -311,8 +289,7 @@ class _MapScreenState extends State<MapScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.white, size: 18),
+                    const Icon(Icons.error_outline, color: Colors.white, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(_error!,
@@ -341,18 +318,13 @@ class _MapScreenState extends State<MapScreen> {
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 10, height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Expanded(
-          child: Text(label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(fontSize: 9, color: AppColors.textSecondary)),
-        ),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 9, color: AppColors.textSecondary)),
       ]),
     );
   }
@@ -392,11 +364,11 @@ class _DeviceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
           // Header
           Row(children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 40, height: 40,
               decoration: BoxDecoration(
                 color: level.color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
@@ -415,7 +387,8 @@ class _DeviceCard extends StatelessWidget {
                           color: Colors.white)),
                   Text(device.deviceId,
                       style: const TextStyle(
-                          fontSize: 11, color: AppColors.textSecondary)),
+                          fontSize: 11,
+                          color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -444,8 +417,7 @@ class _DeviceCard extends StatelessWidget {
             GestureDetector(
               onTap: onClose,
               child: Container(
-                width: 28,
-                height: 28,
+                width: 28, height: 28,
                 decoration: BoxDecoration(
                   color: AppColors.bgCardLight,
                   shape: BoxShape.circle,
@@ -464,22 +436,10 @@ class _DeviceCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _stat(
-                  'PM2.5',
-                  '${(pollutants['pm25'] as num?)?.toStringAsFixed(1) ?? '--'} µg/m³',
-                  AppColors.pm25Color),
-              _stat(
-                  'PM10',
-                  '${(pollutants['pm10'] as num?)?.toStringAsFixed(1) ?? '--'} µg/m³',
-                  AppColors.pm10Color),
-              _stat(
-                  'NOx',
-                  '${(pollutants['nox'] as num?)?.toStringAsFixed(2) ?? '--'} PPM',
-                  AppColors.no2Color),
-              _stat(
-                  'VOC',
-                  '${(pollutants['voc'] as num?)?.toStringAsFixed(2) ?? '--'} PPM',
-                  AppColors.so2Color),
+              _stat('PM2.5', '${(pollutants['pm25'] as num?)?.toStringAsFixed(1) ?? '--'} µg/m³', AppColors.pm25Color),
+              _stat('PM10',  '${(pollutants['pm10'] as num?)?.toStringAsFixed(1) ?? '--'} µg/m³', AppColors.pm10Color),
+              _stat('NOx',   '${(pollutants['nox'] as num?)?.toStringAsFixed(2) ?? '--'} PPM',    AppColors.no2Color),
+              _stat('VOC',   '${(pollutants['voc'] as num?)?.toStringAsFixed(2) ?? '--'} PPM',    AppColors.so2Color),
             ],
           ),
 
@@ -491,18 +451,9 @@ class _DeviceCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _stat(
-                    'Temp',
-                    '${(environment['temperature'] as num?)?.toStringAsFixed(1) ?? '--'}°C',
-                    const Color(0xFFFB923C)),
-                _stat(
-                    'Humidity',
-                    '${(environment['humidity'] as num?)?.toStringAsFixed(0) ?? '--'}%',
-                    const Color(0xFF60A5FA)),
-                _stat(
-                    'Pressure',
-                    '${(environment['pressure'] as num?)?.toStringAsFixed(1) ?? '--'} hPa',
-                    const Color(0xFF34D399)),
+                _stat('Temp',     '${(environment['temperature'] as num?)?.toStringAsFixed(1) ?? '--'}°C', const Color(0xFFFB923C)),
+                _stat('Humidity', '${(environment['humidity'] as num?)?.toStringAsFixed(0) ?? '--'}%',     const Color(0xFF60A5FA)),
+                _stat('Pressure', '${(environment['pressure'] as num?)?.toStringAsFixed(1) ?? '--'} hPa',  const Color(0xFF34D399)),
               ],
             ),
           ],
