@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'air_quality_data.dart';
 import 'api_service.dart';
 import 'app_theme.dart';
 import 'common_widget.dart';
+import 'shared_data_service.dart';
+
+const String defaultDevice = 'lands-building';
 
 class ForecastScreen extends StatefulWidget {
   const ForecastScreen({super.key});
@@ -15,10 +19,6 @@ class ForecastScreen extends StatefulWidget {
 }
 
 class _ForecastScreenState extends State<ForecastScreen> {
-  String _selectedDevice = defaultDevice;
-  List<String> _devices = [];
-  bool _loading = true;
-  String? _error;
   String _selectedPollutant = 'co2';
   int _selectedHours = 24;
 
@@ -35,28 +35,27 @@ class _ForecastScreenState extends State<ForecastScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPollutantData();
+    });
   }
 
-  Future<void> _loadData() async {
-    setState(() { _loading = true; _error = null; });
+  Future<void> _loadPollutantData() async {
+    final service = context.read<SharedDataService>();
     try {
-      final devices = await api.fetchDevices();
       final history = await api.fetchPollutantHistory(
-        deviceId: _selectedDevice,
+        deviceId: service.selectedDevice,
         pollutant: _selectedPollutant,
         hours: _selectedHours,
       );
 
       setState(() {
-        _devices = devices;
         _pollutantHistory = history;
         _forecast = _getMockHourlyForecast();
         _dailyForecast = _getMockDailyForecast();
-        _loading = false;
       });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      // Error handled by main UI
     }
   }
 
@@ -100,58 +99,61 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        backgroundColor: AppColors.bgDark,
-        body: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.good))
-            : _error != null
-                ? _buildError()
-                : RefreshIndicator(
-                    onRefresh: _loadData,
-                    color: AppColors.good,
-                    backgroundColor: AppColors.bgCard,
-                    child: CustomScrollView(
-                      slivers: [
-                        // ── Header ───────────────────────────────────────
-                        SliverToBoxAdapter(child: _buildHeader()),
+    return Consumer<SharedDataService>(
+      builder: (context, service, _) {
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: Scaffold(
+            backgroundColor: AppColors.bgDark,
+            body: service.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.good))
+                : service.error != null
+                    ? _buildError(service)
+                    : RefreshIndicator(
+                        onRefresh: () => service.loadData(),
+                        color: AppColors.good,
+                        backgroundColor: AppColors.bgCard,
+                        child: CustomScrollView(
+                          slivers: [
+                            // ── Header ───────────────────────────────────────
+                            SliverToBoxAdapter(child: _buildHeader(service)),
 
-                        // ── Device Selector ──────────────────────────────
-                        if (_devices.length > 1)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedDevice,
-                                dropdownColor: AppColors.bgCard,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  labelText: 'Location',
-                                  labelStyle: const TextStyle(
-                                      color: AppColors.textSecondary),
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10)),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide:
-                                        BorderSide(color: AppColors.border),
-                                  ),
-                                  filled: true,
-                                  fillColor: AppColors.bgCard,
-                                ),
-                                items: _devices
-                                    .map((d) => DropdownMenuItem(
-                                          value: d,
-                                          child: Text(d,
-                                              style: const TextStyle(
-                                                  color: Colors.white)),
-                                        ))
-                                    .toList(),
+                            // ── Device Selector ──────────────────────────────
+                            if (service.devices.length > 1)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                                  child: DropdownButtonFormField<String>(
+                                    value: service.selectedDevice,
+                                    dropdownColor: AppColors.bgCard,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      labelText: 'Location',
+                                      labelStyle: const TextStyle(
+                                          color: AppColors.textSecondary),
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(10)),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide:
+                                            BorderSide(color: AppColors.border),
+                                      ),
+                                      filled: true,
+                                      fillColor: AppColors.bgCard,
+                                    ),
+                                    items: service.devices
+                                        .map((d) => DropdownMenuItem(
+                                              value: d,
+                                              child: Text(d,
+                                                  style: const TextStyle(
+                                                      color: Colors.white)),
+                                            ))
+                                        .toList(),
                                 onChanged: (val) {
                                   if (val != null) {
-                                    setState(() => _selectedDevice = val);
-                                    _loadData();
+                                    service.setSelectedDevice(val);
+                                    _loadPollutantData();
                                   }
                                 },
                               ),
@@ -261,7 +263,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                     onTap: () {
                                       setState(
                                           () => _selectedPollutant = p);
-                                      _loadData();
+                                      _loadPollutantData();
                                     },
                                     child: AnimatedContainer(
                                       duration:
@@ -318,7 +320,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                 return GestureDetector(
                                   onTap: () {
                                     setState(() => _selectedHours = h);
-                                    _loadData();
+                                    _loadPollutantData();
                                   },
                                   child: AnimatedContainer(
                                     duration:
@@ -388,11 +390,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
                       ],
                     ),
                   ),
-      ),
+            ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(SharedDataService service) {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.bgCard,
@@ -416,13 +420,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
                         color: Colors.white)),
                 const SizedBox(height: 4),
                 Text(
-                  _selectedDevice,
+                  service.selectedDevice,
                   style: const TextStyle(
                       fontSize: 13, color: AppColors.textSecondary),
                 ),
               ]),
               GestureDetector(
-                onTap: _loadData,
+                onTap: _loadPollutantData,
                 child: Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(
@@ -587,7 +591,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
     );
   }
 
-  Widget _buildError() {
+  Widget _buildError(SharedDataService service) {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: Center(
@@ -595,12 +599,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
           const Icon(Icons.cloud_off_rounded,
               color: AppColors.textMuted, size: 48),
           const SizedBox(height: 12),
-          Text(_error!,
+          Text(service.error ?? 'An error occurred',
               style: const TextStyle(color: AppColors.textSecondary),
               textAlign: TextAlign.center),
           const SizedBox(height: 16),
           ElevatedButton(
-              onPressed: _loadData, child: const Text('Retry')),
+              onPressed: () => service.loadData(),
+              child: const Text('Retry')),
         ]),
       ),
     );
