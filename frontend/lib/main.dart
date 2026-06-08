@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'app_theme.dart';
 import 'screens.dart';
 import 'health_screen.dart';
 import 'map_screen.dart';
 import 'screen2.dart';
 import 'setting.dart';
+import 'shared_data_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,13 +26,16 @@ class AirQualityApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AirQuality',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.dark,
-      home: const MainShell(),
+    return ChangeNotifierProvider<SharedDataService>(
+      create: (_) => SharedDataService()..loadData(),
+      child: MaterialApp(
+        title: 'AirQuality',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
+        home: const MainShell(),
+      ),
     );
   }
 }
@@ -59,7 +64,6 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       body: IndexedStack(
-        
         index: _currentIndex,
         children: _screens,
       ),
