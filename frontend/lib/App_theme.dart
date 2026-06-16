@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppColors {
@@ -10,7 +11,7 @@ class AppColors {
   static const veryUnhealthy = Color(0xFFC084FC);
   static const hazardous = Color(0xFF9F1239);
 
-  // UI palette
+  // UI palette (dark defaults — prefer context.palette in widgets)
   static const bgDark = Color(0xFF0F172A);
   static const bgCard = Color(0xFF1E293B);
   static const bgCardLight = Color(0xFF263347);
@@ -30,6 +31,86 @@ class AppColors {
   static const coColor = Color(0xFF10B981);
 }
 
+/// Theme-aware UI colors — attached to light/dark [ThemeData].
+@immutable
+class AppPalette extends ThemeExtension<AppPalette> {
+  const AppPalette({
+    required this.card,
+    required this.cardLight,
+    required this.border,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textMuted,
+  });
+
+  final Color card;
+  final Color cardLight;
+  final Color border;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textMuted;
+
+  static const dark = AppPalette(
+    card: AppColors.bgCard,
+    cardLight: AppColors.bgCardLight,
+    border: AppColors.border,
+    textPrimary: AppColors.textPrimary,
+    textSecondary: AppColors.textSecondary,
+    textMuted: AppColors.textMuted,
+  );
+
+  static const light = AppPalette(
+    card: Colors.white,
+    cardLight: Color(0xFFF1F5F9),
+    border: Color(0xFFE5E7EB),
+    textPrimary: Color(0xFF1C1C1E),
+    textSecondary: Color(0xFF64748B),
+    textMuted: Color(0xFF94A3B8),
+  );
+
+  @override
+  AppPalette copyWith({
+    Color? card,
+    Color? cardLight,
+    Color? border,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textMuted,
+  }) {
+    return AppPalette(
+      card: card ?? this.card,
+      cardLight: cardLight ?? this.cardLight,
+      border: border ?? this.border,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textMuted: textMuted ?? this.textMuted,
+    );
+  }
+
+  @override
+  AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
+    if (other is! AppPalette) return this;
+    return AppPalette(
+      card: Color.lerp(card, other.card, t)!,
+      cardLight: Color.lerp(cardLight, other.cardLight, t)!,
+      border: Color.lerp(border, other.border, t)!,
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      textMuted: Color.lerp(textMuted, other.textMuted, t)!,
+    );
+  }
+}
+
+extension AppPaletteContext on BuildContext {
+  AppPalette get palette =>
+      Theme.of(this).extension<AppPalette>() ?? AppPalette.dark;
+
+  SystemUiOverlayStyle get appOverlayStyle =>
+      Theme.of(this).brightness == Brightness.dark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark;
+}
+
 class AppTheme {
   static ThemeData get dark => ThemeData(
         brightness: Brightness.dark,
@@ -43,6 +124,7 @@ class AppTheme {
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
+        extensions: const [AppPalette.dark],
       );
 
   static ThemeData get light => ThemeData(
@@ -57,6 +139,7 @@ class AppTheme {
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
+        extensions: const [AppPalette.light],
       );
 }
 
