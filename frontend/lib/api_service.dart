@@ -65,7 +65,8 @@ class AirQualityApiService {
   /// Returns list of available TTN device IDs.
   Future<List<String>> fetchDevices() async {
     final data = await _get('/devices/');
-    return List<String>.from(data['devices'] as List);
+    final devices = List<String>.from(data['devices'] as List);
+    return devices.where(allowedDevices.contains).toList();
   }
 
   // ── AQI ────────────────────────────────────────────────────────
