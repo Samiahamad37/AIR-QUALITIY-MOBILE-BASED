@@ -34,6 +34,7 @@ class _AqiRingState extends State<AqiRing> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final level = getAqiLevel(widget.aqi);
     final progress = (widget.aqi / 500).clamp(0.0, 1.0);
 
@@ -46,7 +47,7 @@ class _AqiRingState extends State<AqiRing> with SingleTickerProviderStateMixin {
           painter: _RingPainter(
             progress: progress * _anim.value,
             color: level.color,
-            bgColor: AppColors.bgCardLight,
+            bgColor: palette.cardLight,
           ),
           child: Center(
             child: Column(
@@ -66,7 +67,7 @@ class _AqiRingState extends State<AqiRing> with SingleTickerProviderStateMixin {
                   'AQI',
                   style: TextStyle(
                     fontSize: widget.size * 0.09,
-                    color: AppColors.textSecondary,
+                    color: palette.textSecondary,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 2,
                   ),
@@ -162,6 +163,7 @@ class _PollutantBarState extends State<PollutantBar> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final p = widget.pollutant;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -171,7 +173,7 @@ class _PollutantBarState extends State<PollutantBar> with SingleTickerProviderSt
             width: 48,
             child: Text(
               p.name,
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: palette.textSecondary),
             ),
           ),
           Expanded(
@@ -179,7 +181,7 @@ class _PollutantBarState extends State<PollutantBar> with SingleTickerProviderSt
               borderRadius: BorderRadius.circular(4),
               child: Container(
                 height: 6,
-                color: AppColors.bgCardLight,
+                color: palette.cardLight,
                 child: AnimatedBuilder(
                   animation: _anim,
                   builder: (_, __) => FractionallySizedBox(
@@ -255,6 +257,7 @@ class _HourlyChartBarState extends State<HourlyChartBar> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final level = getAqiLevel(widget.data.aqi);
     final ratio = widget.data.aqi / widget.maxAqi;
 
@@ -294,7 +297,7 @@ class _HourlyChartBarState extends State<HourlyChartBar> with SingleTickerProvid
             widget.data.hour,
             style: TextStyle(
               fontSize: 9,
-              color: widget.data.isCurrent ? level.color : AppColors.textMuted,
+              color: widget.data.isCurrent ? level.color : palette.textMuted,
               fontWeight: widget.data.isCurrent ? FontWeight.w700 : FontWeight.w400,
             ),
           ),
@@ -322,23 +325,26 @@ class MetricChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          color: AppColors.bgCard,
+          color: palette.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border.withOpacity(0.5)),
+          border: Border.all(color: palette.border.withOpacity(0.5)),
         ),
         child: Column(
           children: [
             Icon(icon, size: 18, color: color),
             const SizedBox(height: 4),
             Text(value,
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary)),
             Text(label,
-                style: const TextStyle(fontSize: 9, color: AppColors.textSecondary)),
+                style: TextStyle(fontSize: 9, color: palette.textSecondary)),
           ],
         ),
       ),
@@ -356,6 +362,7 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -363,10 +370,10 @@ class SectionHeader extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
+              color: palette.textSecondary,
               letterSpacing: 1.2,
             ),
           ),
@@ -388,12 +395,13 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Container(
       padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: palette.card,
         borderRadius: borderRadius ?? BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        border: Border.all(color: palette.border.withOpacity(0.5)),
       ),
       child: child,
     );
