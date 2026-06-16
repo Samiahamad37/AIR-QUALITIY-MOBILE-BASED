@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'air_quality_data.dart';
 
+
 // ─── Daily Forecast Model ─────────────────────────────────────────────────────
 
 class DailyForecast {
