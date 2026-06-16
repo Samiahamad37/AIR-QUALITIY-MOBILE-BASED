@@ -101,53 +101,55 @@ class _ForecastScreenState extends State<ForecastScreen> {
   Widget build(BuildContext context) {
     return Consumer<SharedDataService>(
       builder: (context, service, _) {
+        final palette = context.palette;
+        final bg = Theme.of(context).scaffoldBackgroundColor;
+
         return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.light,
+          value: context.appOverlayStyle,
           child: Scaffold(
-            backgroundColor: AppColors.bgDark,
+            backgroundColor: bg,
             body: service.isLoading
                 ? const Center(
                     child: CircularProgressIndicator(color: AppColors.good))
                 : service.error != null
-                    ? _buildError(service)
+                    ? _buildError(context, service)
                     : RefreshIndicator(
                         onRefresh: () => service.loadData(),
                         color: AppColors.good,
-                        backgroundColor: AppColors.bgCard,
+                        backgroundColor: palette.card,
                         child: CustomScrollView(
                           slivers: [
-                            // ── Header ───────────────────────────────────────
-                            SliverToBoxAdapter(child: _buildHeader(service)),
+                            SliverToBoxAdapter(
+                                child: _buildHeader(context, service)),
 
-                            // ── Device Selector ──────────────────────────────
                             if (service.devices.length > 1)
                               SliverToBoxAdapter(
                                 child: Padding(
                                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                                   child: DropdownButtonFormField<String>(
                                     value: service.selectedDevice,
-                                    dropdownColor: AppColors.bgCard,
-                                    style: const TextStyle(color: Colors.white),
+                                    dropdownColor: palette.card,
+                                    style: TextStyle(color: palette.textPrimary),
                                     decoration: InputDecoration(
                                       labelText: 'Location',
-                                      labelStyle: const TextStyle(
-                                          color: AppColors.textSecondary),
+                                      labelStyle: TextStyle(
+                                          color: palette.textSecondary),
                                       border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(10)),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
                                         borderSide:
-                                            BorderSide(color: AppColors.border),
+                                            BorderSide(color: palette.border),
                                       ),
                                       filled: true,
-                                      fillColor: AppColors.bgCard,
+                                      fillColor: palette.card,
                                     ),
                                     items: service.devices
                                         .map((d) => DropdownMenuItem(
                                               value: d,
                                               child: Text(d,
-                                                  style: const TextStyle(
-                                                      color: Colors.white)),
+                                                  style: TextStyle(
+                                                      color: palette.textPrimary)),
                                             ))
                                         .toList(),
                                 onChanged: (val) {
@@ -212,13 +214,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _chartLegend(AppColors.good, 'Good'),
+                                    _chartLegend(context, AppColors.good, 'Good'),
                                     _chartLegend(
-                                        AppColors.moderate, 'Moderate'),
-                                    _chartLegend(AppColors.sensitiveGroups,
+                                        context, AppColors.moderate, 'Moderate'),
+                                    _chartLegend(context, AppColors.sensitiveGroups,
                                         'Sensitive'),
                                     _chartLegend(
-                                        AppColors.unhealthy, 'Unhealthy'),
+                                        context, AppColors.unhealthy, 'Unhealthy'),
                                   ],
                                 ),
                               ]),
@@ -274,13 +276,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                       decoration: BoxDecoration(
                                         color: isSelected
                                             ? AppColors.good.withOpacity(0.15)
-                                            : AppColors.bgCard,
+                                            : palette.card,
                                         borderRadius:
                                             BorderRadius.circular(99),
                                         border: Border.all(
                                           color: isSelected
                                               ? AppColors.good
-                                              : AppColors.border
+                                              : palette.border
                                                   .withOpacity(0.5),
                                         ),
                                       ),
@@ -291,7 +293,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                           fontWeight: FontWeight.w600,
                                           color: isSelected
                                               ? AppColors.good
-                                              : AppColors.textSecondary,
+                                              : palette.textSecondary,
                                         ),
                                       ),
                                     ),
@@ -331,13 +333,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? AppColors.good.withOpacity(0.15)
-                                          : AppColors.bgCard,
+                                          : palette.card,
                                       borderRadius:
                                           BorderRadius.circular(99),
                                       border: Border.all(
                                         color: isSelected
                                             ? AppColors.good
-                                            : AppColors.border
+                                            : palette.border
                                                 .withOpacity(0.5),
                                       ),
                                     ),
@@ -348,7 +350,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                         fontWeight: FontWeight.w600,
                                         color: isSelected
                                             ? AppColors.good
-                                            : AppColors.textSecondary,
+                                            : palette.textSecondary,
                                       ),
                                     ),
                                   ),
@@ -369,13 +371,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
                               padding:
                                   const EdgeInsets.fromLTRB(16, 16, 8, 12),
                               child: _pollutantHistory.isEmpty
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       height: 180,
                                       child: Center(
                                         child: Text('No data available',
                                             style: TextStyle(
                                                 color:
-                                                    AppColors.textSecondary)),
+                                                    palette.textSecondary)),
                                       ),
                                     )
                                   : SizedBox(
@@ -396,11 +398,12 @@ class _ForecastScreenState extends State<ForecastScreen> {
     );
   }
 
-  Widget _buildHeader(SharedDataService service) {
+  Widget _buildHeader(BuildContext context, SharedDataService service) {
+    final palette = context.palette;
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: palette.card,
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
@@ -413,16 +416,16 @@ class _ForecastScreenState extends State<ForecastScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Forecast',
+                Text('Forecast',
                     style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white)),
+                        color: palette.textPrimary)),
                 const SizedBox(height: 4),
                 Text(
                   service.selectedDevice,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary),
+                  style: TextStyle(
+                      fontSize: 13, color: palette.textSecondary),
                 ),
               ]),
               GestureDetector(
@@ -430,12 +433,12 @@ class _ForecastScreenState extends State<ForecastScreen> {
                 child: Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(
-                    color: AppColors.bgCardLight,
+                    color: palette.cardLight,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: palette.border),
                   ),
-                  child: const Icon(Icons.refresh_rounded,
-                      size: 18, color: AppColors.textSecondary),
+                  child: Icon(Icons.refresh_rounded,
+                      size: 18, color: palette.textSecondary),
                 ),
               ),
             ],
@@ -591,16 +594,17 @@ class _ForecastScreenState extends State<ForecastScreen> {
     );
   }
 
-  Widget _buildError(SharedDataService service) {
+  Widget _buildError(BuildContext context, SharedDataService service) {
+    final palette = context.palette;
     return Scaffold(
-      backgroundColor: AppColors.bgDark,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.cloud_off_rounded,
-              color: AppColors.textMuted, size: 48),
+          Icon(Icons.cloud_off_rounded,
+              color: palette.textMuted, size: 48),
           const SizedBox(height: 12),
           Text(service.error ?? 'An error occurred',
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: palette.textSecondary),
               textAlign: TextAlign.center),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -611,15 +615,15 @@ class _ForecastScreenState extends State<ForecastScreen> {
     );
   }
 
-  Widget _chartLegend(Color color, String label) {
+  Widget _chartLegend(BuildContext context, Color color, String label) {
     return Row(children: [
       Container(
           width: 8, height: 8,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
       const SizedBox(width: 4),
       Text(label,
-          style: const TextStyle(
-              fontSize: 9, color: AppColors.textSecondary)),
+          style: TextStyle(
+              fontSize: 9, color: context.palette.textSecondary)),
     ]);
   }
 }
@@ -632,6 +636,7 @@ class _DayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final aqi = (data['predicted_aqi'] as num).toInt();
     final level = getAqiLevel(aqi);
     final isToday = data['is_today'] == true;
@@ -643,12 +648,12 @@ class _DayCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isToday
             ? level.color.withOpacity(0.15)
-            : AppColors.bgCard,
+            : palette.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isToday
               ? level.color.withOpacity(0.4)
-              : AppColors.border.withOpacity(0.4),
+              : palette.border.withOpacity(0.4),
         ),
       ),
       child: Column(
@@ -658,7 +663,7 @@ class _DayCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: isToday ? level.color : AppColors.textSecondary,
+                color: isToday ? level.color : palette.textSecondary,
               )),
           const SizedBox(height: 8),
           Text('$aqi',
@@ -670,15 +675,15 @@ class _DayCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(data['condition'].toString(),
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 9, color: AppColors.textSecondary),
+              style: TextStyle(
+                  fontSize: 9, color: palette.textSecondary),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
           const SizedBox(height: 6),
           Text(
             '${data['aqi_min']}-${data['aqi_max']}',
-            style: const TextStyle(
-                fontSize: 9, color: AppColors.textMuted),
+            style: TextStyle(
+                fontSize: 9, color: palette.textMuted),
           ),
         ],
       ),
