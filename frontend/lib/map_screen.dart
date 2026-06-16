@@ -76,14 +76,16 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: context.appOverlayStyle,
       child: Scaffold(
-        backgroundColor: AppColors.bgDark,
+        backgroundColor: bg,
         body: Stack(
           children: [
 
-            // ── Map ────────────────────────────────────────────────
             FlutterMap(
               mapController: _mapController,
               options: MapOptions(
@@ -194,8 +196,8 @@ class _MapScreenState extends State<MapScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      AppColors.bgDark.withOpacity(0.95),
-                      AppColors.bgDark.withOpacity(0),
+                      bg.withOpacity(0.95),
+                      bg.withOpacity(0),
                     ],
                   ),
                 ),
@@ -206,19 +208,19 @@ class _MapScreenState extends State<MapScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Air Quality Map',
+                        Text('Air Quality Map',
                             style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.white)),
+                                color: palette.textPrimary)),
                         GestureDetector(
                           onTap: _loadData,
                           child: Container(
                             width: 36, height: 36,
                             decoration: BoxDecoration(
-                              color: AppColors.bgCard.withOpacity(0.9),
+                              color: palette.card.withOpacity(0.9),
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.border),
+                              border: Border.all(color: palette.border),
                             ),
                             child: _loading
                                 ? const Padding(
@@ -227,9 +229,9 @@ class _MapScreenState extends State<MapScreen> {
                                         strokeWidth: 2,
                                         color: AppColors.good),
                                   )
-                                : const Icon(Icons.refresh_rounded,
+                                : Icon(Icons.refresh_rounded,
                                     size: 18,
-                                    color: AppColors.textSecondary),
+                                    color: palette.textSecondary),
                           ),
                         ),
                       ],
@@ -239,30 +241,29 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-            // ── Legend ─────────────────────────────────────────────
             Positioned(
               top: 90, right: 16,
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.bgCard.withOpacity(0.95),
+                  color: palette.card.withOpacity(0.95),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: palette.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('AQI Scale',
+                    Text('AQI Scale',
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary)),
+                            color: palette.textSecondary)),
                     const SizedBox(height: 6),
-                    _legendItem(AppColors.good, 'Good (0-50)'),
-                    _legendItem(AppColors.moderate, 'Moderate (51-100)'),
-                    _legendItem(AppColors.sensitiveGroups, 'Sensitive (101-150)'),
-                    _legendItem(AppColors.unhealthy, 'Unhealthy (151-200)'),
-                    _legendItem(AppColors.veryUnhealthy, 'Very Unhealthy (201+)'),
+                    _legendItem(context, AppColors.good, 'Good (0-50)'),
+                    _legendItem(context, AppColors.moderate, 'Moderate (51-100)'),
+                    _legendItem(context, AppColors.sensitiveGroups, 'Sensitive (101-150)'),
+                    _legendItem(context, AppColors.unhealthy, 'Unhealthy (151-200)'),
+                    _legendItem(context, AppColors.veryUnhealthy, 'Very Unhealthy (201+)'),
                   ],
                 ),
               ),
@@ -313,7 +314,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _legendItem(Color color, String label) {
+  Widget _legendItem(BuildContext context, Color color, String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(children: [
@@ -323,8 +324,8 @@ class _MapScreenState extends State<MapScreen> {
         ),
         const SizedBox(width: 6),
         Text(label,
-            style: const TextStyle(
-                fontSize: 9, color: AppColors.textSecondary)),
+            style: TextStyle(
+                fontSize: 9, color: context.palette.textSecondary)),
       ]),
     );
   }
@@ -340,6 +341,7 @@ class _DeviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final aqiData = device.aqiData;
     final aqi = (aqiData?['aqi'] as num?)?.toInt() ?? 0;
     final level = getAqiLevel(aqi);
@@ -350,7 +352,7 @@ class _DeviceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: palette.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: level.color.withOpacity(0.3)),
         boxShadow: [
@@ -365,7 +367,6 @@ class _DeviceCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // Header
           Row(children: [
             Container(
               width: 40, height: 40,
@@ -381,14 +382,14 @@ class _DeviceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(device.label,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white)),
+                          color: palette.textPrimary)),
                   Text(device.deviceId,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textSecondary)),
+                          color: palette.textSecondary)),
                 ],
               ),
             ),
@@ -419,17 +420,17 @@ class _DeviceCard extends StatelessWidget {
               child: Container(
                 width: 28, height: 28,
                 decoration: BoxDecoration(
-                  color: AppColors.bgCardLight,
+                  color: palette.cardLight,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close_rounded,
-                    size: 16, color: AppColors.textSecondary),
+                child: Icon(Icons.close_rounded,
+                    size: 16, color: palette.textSecondary),
               ),
             ),
           ]),
 
           const SizedBox(height: 14),
-          Divider(color: AppColors.border.withOpacity(0.5)),
+          Divider(color: palette.border.withOpacity(0.5)),
           const SizedBox(height: 10),
 
           // Pollutants row
