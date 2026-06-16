@@ -29,27 +29,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+
     return Consumer<SharedDataService>(
       builder: (context, service, _) {
         if (service.isLoading) {
           return Scaffold(
-            backgroundColor: AppColors.bgDark,
+            backgroundColor: bg,
             body: const Center(child: CircularProgressIndicator()),
           );
         }
 
         if (service.error != null || service.currentData == null) {
           return Scaffold(
-            backgroundColor: AppColors.bgDark,
+            backgroundColor: bg,
             body: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.wifi_off_rounded,
-                      color: Colors.grey, size: 48),
+                  Icon(Icons.wifi_off_rounded,
+                      color: palette.textMuted, size: 48),
                   const SizedBox(height: 12),
                   Text(service.error ?? 'No data',
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: palette.textSecondary),
                       textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -69,46 +72,45 @@ class _HomeScreenState extends State<HomeScreen> {
             : data.hourlyData.map((h) => h.aqi).reduce((a, b) => a > b ? a : b);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.light,
+          value: context.appOverlayStyle,
           child: Scaffold(
-            backgroundColor: AppColors.bgDark,
+            backgroundColor: bg,
             body: RefreshIndicator(
               onRefresh: () => service.loadData(),
               color: level.color,
-              backgroundColor: AppColors.bgCard,
+              backgroundColor: palette.card,
               child: CustomScrollView(
                 slivers: [
-                  // ─── Hero Header ─────────────────────────────────────────
-                  SliverToBoxAdapter(child: _buildHero(data, level, service)),
+                  SliverToBoxAdapter(
+                      child: _buildHero(context, data, level, service)),
 
-                  // ─── Device Selector ──────────────────────────────────────
                   if (service.devices.length > 1)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                         child: DropdownButtonFormField<String>(
                           value: service.selectedDevice,
-                          dropdownColor: AppColors.bgCard,
-                          style: const TextStyle(color: Colors.white),
+                          dropdownColor: palette.card,
+                          style: TextStyle(color: palette.textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Location',
                             labelStyle:
-                                const TextStyle(color: AppColors.textSecondary),
+                                TextStyle(color: palette.textSecondary),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10)),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: AppColors.border),
+                              borderSide: BorderSide(color: palette.border),
                             ),
                             filled: true,
-                            fillColor: AppColors.bgCard,
+                            fillColor: palette.card,
                           ),
                           items: service.devices
                               .map((d) => DropdownMenuItem(
                                     value: d,
                                     child: Text(d,
-                                        style: const TextStyle(
-                                            color: Colors.white)),
+                                        style: TextStyle(
+                                            color: palette.textPrimary)),
                                   ))
                               .toList(),
                           onChanged: (val) {
@@ -266,11 +268,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHero(
-      AirQualityData data, AqiLevel level, SharedDataService service) {
+  Widget _buildHero(BuildContext context, AirQualityData data, AqiLevel level,
+      SharedDataService service) {
+    final palette = context.palette;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: palette.card,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
@@ -293,21 +296,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icon(Icons.location_on_rounded,
                               size: 13, color: level.color),
                           const SizedBox(width: 4),
-                          const Text('Your Location',
+                          Text('Your Location',
                               style: TextStyle(
                                   fontSize: 11,
-                                  color: AppColors.textSecondary)),
+                                  color: palette.textSecondary)),
                         ],
                       ),
                       const SizedBox(height: 2),
-                      const Text('Dar es Salaam',
+                      Text('Dar es Salaam',
                           style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              color: Colors.white)),
+                              color: palette.textPrimary)),
                       Text(data.district,
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary)),
+                          style: TextStyle(
+                              fontSize: 12, color: palette.textSecondary)),
                     ],
                   ),
                   Row(
@@ -326,12 +329,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: 36,
                             height: 36,
                             decoration: BoxDecoration(
-                              color: AppColors.bgCardLight,
+                              color: palette.cardLight,
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.border),
+                              border: Border.all(color: palette.border),
                             ),
-                            child: const Icon(Icons.refresh_rounded,
-                                size: 18, color: AppColors.textSecondary),
+                            child: Icon(Icons.refresh_rounded,
+                                size: 18, color: palette.textSecondary),
                           ),
                         ),
                       const SizedBox(width: 8),
@@ -339,12 +342,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: AppColors.bgCardLight,
+                          color: palette.cardLight,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: palette.border),
                         ),
-                        child: const Icon(Icons.notifications_none_rounded,
-                            size: 18, color: AppColors.textSecondary),
+                        child: Icon(Icons.notifications_none_rounded,
+                            size: 18, color: palette.textSecondary),
                       ),
                     ],
                   ),
@@ -369,30 +372,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 6),
             Text('Updated ${_timeAgo(data.updatedAt)}',
-                style:
-                    const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                style: TextStyle(fontSize: 11, color: palette.textMuted)),
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: Row(
                 children: [
-                  _quickStat(
-                      'PM2.5',
+                  _quickStat(context, 'PM2.5',
                       '${data.pollutants[0].value.round()} µg/m³',
                       AppColors.pm25Color),
-                  _divider(),
-                  _quickStat(
-                      'PM10',
+                  _divider(context),
+                  _quickStat(context, 'PM10',
                       '${data.pollutants[1].value.round()} µg/m³',
                       AppColors.pm10Color),
-                  _divider(),
-                  _quickStat(
-                      'NOx',
+                  _divider(context),
+                  _quickStat(context, 'NOx',
                       '${data.pollutants[3].value.toStringAsFixed(2)} PPM',
                       AppColors.no2Color),
-                  _divider(),
-                  _quickStat(
-                      'VOC',
+                  _divider(context),
+                  _quickStat(context, 'VOC',
                       '${data.pollutants[4].value.toStringAsFixed(2)} PPM',
                       AppColors.so2Color),
                 ],
@@ -404,13 +402,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _quickStat(String label, String value, Color color) {
+  Widget _quickStat(
+      BuildContext context, String label, String value, Color color) {
+    final palette = context.palette;
     return Expanded(
       child: Column(
         children: [
           Text(label,
-              style: const TextStyle(
-                  fontSize: 10, color: AppColors.textSecondary)),
+              style: TextStyle(fontSize: 10, color: palette.textSecondary)),
           const SizedBox(height: 3),
           Text(value,
               style: TextStyle(
@@ -420,9 +419,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _divider() {
+  Widget _divider(BuildContext context) {
     return Container(
-        width: 1, height: 28, color: AppColors.border.withOpacity(0.5));
+        width: 1,
+        height: 28,
+        color: context.palette.border.withOpacity(0.5));
   }
 
   String _timeAgo(DateTime dt) {
