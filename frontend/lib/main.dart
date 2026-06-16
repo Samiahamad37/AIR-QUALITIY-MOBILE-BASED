@@ -156,12 +156,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'app_theme.dart';
 import 'screens.dart';
 import 'health_screen.dart';
 import 'map_screen.dart';
 import 'screen2.dart';
 import 'setting.dart';
+import 'shared_data_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -213,7 +215,9 @@ class AirQualityApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppState(
       notifier: appSettings,
-      child: AnimatedBuilder(
+      child: ChangeNotifierProvider<SharedDataService>.value(
+        value: sharedDataService,
+        child: AnimatedBuilder(
         // ✅ This rebuild is what makes theme/language actually apply
         animation: appSettings,
         builder: (context, _) {
@@ -229,6 +233,7 @@ class AirQualityApp extends StatelessWidget {
             home: const MainShell(),
           );
         },
+      ),
       ),
     );
   }
