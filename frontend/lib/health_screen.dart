@@ -141,27 +141,29 @@ class _HealthScreenState extends State<HealthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return _buildLoading();
-    if (_error != null) return _buildError();
-    return _buildContent();
+    if (_loading) return _buildLoading(context);
+    if (_error != null) return _buildError(context);
+    return _buildContent(context);
   }
 
-  Widget _buildLoading() => const Scaffold(
-        backgroundColor: AppColors.bgDark,
-        body: Center(child: CircularProgressIndicator(color: AppColors.good)),
+  Widget _buildLoading(BuildContext context) => Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator(color: AppColors.good)),
       );
 
-  Widget _buildError() => Scaffold(
-        backgroundColor: AppColors.bgDark,
+  Widget _buildError(BuildContext context) {
+    final palette = context.palette;
+    return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.cloud_off_rounded, size: 48, color: AppColors.textMuted),
+              Icon(Icons.cloud_off_rounded, size: 48, color: palette.textMuted),
               const SizedBox(height: 16),
               Text(_error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary, height: 1.5)),
+                  style: TextStyle(color: palette.textSecondary, height: 1.5)),
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: _load,
@@ -174,18 +176,19 @@ class _HealthScreenState extends State<HealthScreen> {
           ),
         ),
       );
+  }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
+    final palette = context.palette;
     final level = _level!;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: context.appOverlayStyle,
       child: Scaffold(
-        backgroundColor: AppColors.bgDark,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: CustomScrollView(slivers: [
 
-          // ── Hero header ──────────────────────────────────────────────────
-          SliverToBoxAdapter(child: _buildHeader(level)),
+          SliverToBoxAdapter(child: _buildHeader(context, level)),
 
           // ── Alert banner (shows when AQI > 100) ─────────────────────────
           if (_aqi > 100)
@@ -251,11 +254,12 @@ class _HealthScreenState extends State<HealthScreen> {
     );
   }
 
-  Widget _buildHeader(AqiLevel level) {
+  Widget _buildHeader(BuildContext context, AqiLevel level) {
+    final palette = context.palette;
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: palette.card,
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
@@ -267,20 +271,20 @@ class _HealthScreenState extends State<HealthScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Health Guidance',
+              Text('Health Guidance',
                   style: TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
+                      fontSize: 22, fontWeight: FontWeight.w800, color: palette.textPrimary)),
               GestureDetector(
                 onTap: _load,
                 child: Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(
-                    color: AppColors.bgCardLight,
+                    color: palette.cardLight,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: palette.border),
                   ),
-                  child: const Icon(Icons.refresh_rounded,
-                      size: 18, color: AppColors.textSecondary),
+                  child: Icon(Icons.refresh_rounded,
+                      size: 18, color: palette.textSecondary),
                 ),
               ),
             ]),
@@ -289,10 +293,10 @@ class _HealthScreenState extends State<HealthScreen> {
 
             Row(children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Current AQI',
+                Text('Current AQI',
                     style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: palette.textSecondary,
                         letterSpacing: 0.8)),
                 const SizedBox(height: 4),
                 Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -304,10 +308,10 @@ class _HealthScreenState extends State<HealthScreen> {
                           height: 1)),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10, left: 6),
-                    child: const Text('AQI',
+                    child: Text('AQI',
                         style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: palette.textSecondary,
                             fontWeight: FontWeight.w500)),
                   ),
                 ]),
@@ -337,7 +341,7 @@ class _HealthScreenState extends State<HealthScreen> {
                     child: CircularProgressIndicator(
                       value: (_aqi / 500).clamp(0.0, 1.0),
                       strokeWidth: 10,
-                      backgroundColor: AppColors.bgCardLight,
+                      backgroundColor: palette.cardLight,
                       valueColor: AlwaysStoppedAnimation(level.color),
                       strokeCap: StrokeCap.round,
                     ),
@@ -348,8 +352,8 @@ class _HealthScreenState extends State<HealthScreen> {
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: level.color)),
-                    const Text('of max',
-                        style: TextStyle(fontSize: 9, color: AppColors.textMuted)),
+                    Text('of max',
+                        style: TextStyle(fontSize: 9, color: palette.textMuted)),
                   ]),
                 ]),
               ),
