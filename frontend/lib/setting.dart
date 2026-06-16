@@ -32,7 +32,7 @@ class _Local extends ChangeNotifier {
 
   void toggle(String k, bool v) {
     if (k == 'notifications') notifications = v;
-    // if (k == 'biometric')     biometric     = v;
+    if (k == 'biometric')     biometric     = v;
     if (k == 'cloudSync')     cloudSync     = v;
     notifyListeners();
   }
@@ -157,13 +157,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: CupertinoIcons.globe,
                           iconBg: const Color(0xFF007AFF),
                           label: 'Language',
-                          // ✅ Shows global value
+                          // Shows global value
                           value: global.language,
                           onTap: () => _pick(ctx,
                             title: 'Language',
                             options: const ['English', 'Kiswahili'],
                             current: global.language,
-                            // ✅ Writes to global, MaterialApp rebuilds
+                            //  Writes to global, MaterialApp rebuilds
                             onSelect: (v) {
                               global.setLanguage(v);
                               _snack(ctx, 'Language: $v');
