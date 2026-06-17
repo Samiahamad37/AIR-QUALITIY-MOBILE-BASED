@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'main.dart' show AppState;   // ✅ reads the SAME global state
+import 'main.dart' show AppState;   // reads the SAME global state
 
 // ─── Theme-aware colors — work in both light & dark ────────────────────────────
 
@@ -64,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: AnimatedBuilder(
         animation: _local,
         builder: (ctx, _) {
-          // ✅ Read directly from the SAME global model main.dart uses
+          //  Read directly from the SAME global model main.dart uses
           final global = AppState.of(ctx);
 
           return Scaffold(
@@ -104,8 +104,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           iconBg: const Color(0xFF636366),
                           label: 'Dark Mode',
                           sub: 'App appearance',
-                          // ✅ THIS is the actual fix:
-                          // reading + writing the SAME object as main.dart
                           value: global.darkMode,
                           onChanged: (v) {
                             global.setDarkMode(v);
