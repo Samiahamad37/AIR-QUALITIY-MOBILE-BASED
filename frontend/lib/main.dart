@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -63,7 +64,7 @@ class AirQualityApp extends StatelessWidget {
       child: ChangeNotifierProvider<SharedDataService>.value(
         value: sharedDataService,
         child: AnimatedBuilder(
-        //  This rebuild is what makes theme/language actually apply
+        // ✅ This rebuild is what makes theme/language actually apply
         animation: appSettings,
         builder: (context, _) {
           return MaterialApp(
@@ -73,7 +74,7 @@ class AirQualityApp extends StatelessWidget {
             darkTheme: AppTheme.dark,
             themeMode: appSettings.darkMode
                 ? ThemeMode.dark
-                : ThemeMode.light,           // switches here
+                : ThemeMode.light,           // ✅ switches here
             locale: _localeFor(appSettings.language),
             home: const MainShell(),
           );
