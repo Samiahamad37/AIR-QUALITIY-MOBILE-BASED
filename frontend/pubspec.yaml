@@ -1,3 +1,5 @@
+
+
 name: air_quality_monitor
 description: A modern air quality monitoring mobile application.
 publish_to: 'none'
@@ -10,6 +12,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
+  flutter_localizations:
+    sdk: flutter
+
+  # intl: ^0.20.2
+  
 
   # UI & Styling
   cupertino_icons: ^1.0.2
@@ -25,7 +33,7 @@ dependencies:
   http: ^1.1.0
   dio: ^5.3.1
   retrofit: ^4.0.0
-  
+
   # Local Storage & Database
   shared_preferences: ^2.2.0
   hive: ^2.2.3
@@ -70,6 +78,7 @@ dependency_overrides:
   firebase_messaging_web: ^4.1.6
 
 flutter:
+  generate: true
   uses-material-design: true
 
   assets:
