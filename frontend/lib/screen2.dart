@@ -77,7 +77,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   List<Map<String, dynamic>> _getMockDailyForecast() {
     final now = DateTime.now();
-    final aqiValues = [25, 32, 28, 35, 30, 27, 22];
+    final aqiValues = [35, 32, 28, 35, 30, 27, 22];
     return List.generate(7, (i) {
       final aqi = aqiValues[i];
       final level = getAqiLevel(aqi);
