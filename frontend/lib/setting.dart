@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'main.dart' show AppState;   // reads the SAME global state
+import 'main.dart' show AppState;  
 
 // ─── Theme-aware colors — work in both light & dark ────────────────────────────
 
