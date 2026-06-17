@@ -18,7 +18,7 @@ void main() async {
   runApp(const AirQualityApp());
 }
 
-
+// ─── Global app-wide settings — the ONLY source of truth ──────────────────────
 
 class AppSettingsModel extends ChangeNotifier {
   bool _darkMode = true;
@@ -30,7 +30,7 @@ class AppSettingsModel extends ChangeNotifier {
   void setDarkMode(bool value) {
     if (_darkMode == value) return;
     _darkMode = value;
-    notifyListeners();         
+    notifyListeners();          // triggers MaterialApp rebuild below
   }
 
   void setLanguage(String value) {
@@ -51,7 +51,7 @@ class AppState extends InheritedNotifier<AppSettingsModel> {
       context.dependOnInheritedWidgetOfExactType<AppState>()!.notifier!;
 }
 
-// ─── Root widget ───────────────────────────────────────────
+// ─── Root widget ──────────────────────────────────────────────────────────────
 
 class AirQualityApp extends StatelessWidget {
   const AirQualityApp({super.key});
@@ -63,7 +63,7 @@ class AirQualityApp extends StatelessWidget {
       child: ChangeNotifierProvider<SharedDataService>.value(
         value: sharedDataService,
         child: AnimatedBuilder(
-        
+        //  This rebuild is what makes theme/language actually apply
         animation: appSettings,
         builder: (context, _) {
           return MaterialApp(
