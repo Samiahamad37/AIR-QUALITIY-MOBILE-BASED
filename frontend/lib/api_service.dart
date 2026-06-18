@@ -10,7 +10,7 @@ const String _baseUrl = 'http://localhost:8000/api/air-quality';
 const Duration _timeout = Duration(seconds: 30);
 
 const List<String> allowedDevices = ['lands-building', 'planing-building'];
-const String defaultDevice = 'lands-building';
+const String defaultDevice = 'planning-building';
 
 // ─── Exception ────────────────────────────────────────────────────────────────
 
