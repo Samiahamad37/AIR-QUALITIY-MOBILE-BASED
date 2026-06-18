@@ -6,8 +6,6 @@ import 'air_quality_data.dart';
 import 'api_service.dart';
 import 'app_theme.dart';
 
-// ─── Device Location Model ────────────────────────────────────────────────────
-
 class _DeviceLocation {
   final String deviceId;
   final String label;
@@ -40,7 +38,7 @@ class _MapScreenState extends State<MapScreen> {
   final List<_DeviceLocation> _devices = [
     _DeviceLocation(
       deviceId: 'lands-building',
-      label: 'Lands Building',
+      label: 'Mwenge',
       position: const LatLng(-6.7690, 39.2400),
     ),
     _DeviceLocation(
