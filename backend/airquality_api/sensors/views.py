@@ -22,7 +22,8 @@ class SensorViewSet(viewsets.ReadOnlyModelViewSet):
     def latest_reading(self, request, pk=None):
         """Get latest reading from a sensor."""
         sensor = self.get_object()
-        reading = sensor.readings.first()
+        # reading = sensor.readings.first()
+        reading = sensor.readings.order_by('-timestamp').first()
         if reading:
             serializer = SensorReadingSerializer(reading)
             return Response(serializer.data)
