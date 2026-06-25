@@ -4,6 +4,7 @@ import 'air_quality_data.dart';
 import 'api_service.dart';
 import 'app_theme.dart';
 import 'common_widget.dart';
+import 'L10n/app_localizations.dart';
 
 // ─── Group Model ──────────────────────────────────────────────────────────────
 
@@ -15,13 +16,13 @@ class _Group {
   const _Group({required this.id, required this.label, required this.icon});
 }
 
-const List<_Group> _kGroups = [
-  _Group(id: 'general',         label: 'General',      icon: Icons.groups_rounded),
-  _Group(id: 'children',        label: 'Children',     icon: Icons.child_care_rounded),
-  _Group(id: 'elderly',         label: 'Elderly',      icon: Icons.elderly_rounded),
-  _Group(id: 'pregnant',        label: 'Pregnant',     icon: Icons.pregnant_woman_rounded),
-  _Group(id: 'asthma',          label: 'Asthma',       icon: Icons.air_rounded),
-  _Group(id: 'outdoor_workers', label: 'Outdoor Work', icon: Icons.construction_rounded),
+List<_Group> _kGroups(BuildContext context) => [
+  _Group(id: 'general',         label: AppLocalizations.of(context)!.groupGeneral,      icon: Icons.groups_rounded),
+  _Group(id: 'children',        label: AppLocalizations.of(context)!.groupChildren,     icon: Icons.child_care_rounded),
+  _Group(id: 'elderly',         label: AppLocalizations.of(context)!.groupElderly,      icon: Icons.elderly_rounded),
+  _Group(id: 'pregnant',        label: AppLocalizations.of(context)!.groupPregnant,     icon: Icons.pregnant_woman_rounded),
+  _Group(id: 'asthma',          label: AppLocalizations.of(context)!.groupAsthma,       icon: Icons.air_rounded),
+  _Group(id: 'outdoor_workers', label: AppLocalizations.of(context)!.groupOutdoor, icon: Icons.construction_rounded),
 ];
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -153,6 +154,7 @@ class _HealthScreenState extends State<HealthScreen> {
 
   Widget _buildError(BuildContext context) {
     final palette = context.palette;
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Center(
@@ -168,7 +170,7 @@ class _HealthScreenState extends State<HealthScreen> {
               ElevatedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
+                label: Text(l10n.healthRetry),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.good, foregroundColor: Colors.black),
               ),
@@ -200,14 +202,14 @@ class _HealthScreenState extends State<HealthScreen> {
             ),
 
           // ── Group selector ───────────────────────────────────────────────
-          const SliverToBoxAdapter(child: SectionHeader(title: 'Select Group')),
+          SliverToBoxAdapter(child: SectionHeader(title: AppLocalizations.of(context)!.healthSelectGroup)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _kGroups.map((g) => _GroupChip(
+                children: _kGroups(context).map((g) => _GroupChip(
                   group: g,
                   isActive: _activeGroups.contains(g.id),
                   level: level,
@@ -218,12 +220,12 @@ class _HealthScreenState extends State<HealthScreen> {
           ),
 
           // ── Recommendation cards ─────────────────────────────────────────
-          const SliverToBoxAdapter(child: SectionHeader(title: 'Health Guidance')),
+          SliverToBoxAdapter(child: SectionHeader(title: AppLocalizations.of(context)!.healthGuidance)),
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (_, i) {
                 final groupId = _activeGroups.elementAt(i);
-                final group = _kGroups.firstWhere((g) => g.id == groupId);
+                final group = _kGroups(context).firstWhere((g) => g.id == groupId);
                 final recs = _recs[groupId] ?? [];
                 return Padding(
                   padding: EdgeInsets.fromLTRB(
@@ -242,7 +244,7 @@ class _HealthScreenState extends State<HealthScreen> {
           ),
 
           // ── Tips footer ──────────────────────────────────────────────────
-          const SliverToBoxAdapter(child: SectionHeader(title: 'General Tips')),
+          SliverToBoxAdapter(child: SectionHeader(title: AppLocalizations.of(context)!.healthGeneralTips)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -271,7 +273,7 @@ class _HealthScreenState extends State<HealthScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Health Guidance',
+              Text(AppLocalizations.of(context)!.healthTitle,
                   style: TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w800, color: palette.textPrimary)),
               GestureDetector(
@@ -293,7 +295,7 @@ class _HealthScreenState extends State<HealthScreen> {
 
             Row(children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Current AQI',
+                Text(AppLocalizations.of(context)!.healthCurrentAqi,
                     style: TextStyle(
                         fontSize: 11,
                         color: palette.textSecondary,
@@ -352,7 +354,7 @@ class _HealthScreenState extends State<HealthScreen> {
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: level.color)),
-                    Text('of max',
+                    Text(AppLocalizations.of(context)!.healthOfMax,
                         style: TextStyle(fontSize: 9, color: palette.textMuted)),
                   ]),
                 ]),
@@ -394,11 +396,12 @@ class _AlertBanner extends StatelessWidget {
 
   const _AlertBanner({required this.aqi, required this.level});
 
-  String get _message {
-    if (aqi > 300) return 'HAZARDOUS — health emergency. Stay indoors immediately.';
-    if (aqi > 200) return 'Very unhealthy — avoid all outdoor exposure. Use air purifiers.';
-    if (aqi > 150) return 'Unhealthy air — everyone should reduce outdoor activity now.';
-    return 'Sensitive groups should take extra precautions outdoors.';
+  String _message(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (aqi > 300) return l10n.alertHazardous;
+    if (aqi > 200) return l10n.alertVeryUnhealthy;
+    if (aqi > 150) return l10n.alertUnhealthy;
+    return l10n.alertSensitive;
   }
 
   @override
@@ -414,7 +417,7 @@ class _AlertBanner extends StatelessWidget {
         Icon(Icons.warning_rounded, color: level.textColor, size: 20),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(_message,
+          child: Text(_message(context),
               style: TextStyle(
                   fontSize: 13,
                   color: level.textColor,
@@ -581,7 +584,7 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
                     color: widget.level.color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text('${widget.recommendations.length} tips',
+                  child: Text('${widget.recommendations.length} ${AppLocalizations.of(context)!.healthTips}',
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -593,7 +596,7 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
             if (widget.recommendations.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: const Text('No guidance available.',
+                child: Text(AppLocalizations.of(context)!.healthNoGuidance,
                     style: TextStyle(
                         fontSize: 13, color: AppColors.textSecondary)),
               )
@@ -648,14 +651,17 @@ class _TipsGrid extends StatelessWidget {
   final AqiLevel level;
   const _TipsGrid({required this.level});
 
-  static const _tips = [
-    (Icons.masks_rounded,          'Wear N95',        'Use N95/KN95 masks outdoors when AQI > 100'),
-    (Icons.wind_power_rounded,     'Air Purifier',    'Run HEPA purifiers indoors on high settings'),
-    (Icons.window_rounded,         'Close Windows',   'Keep windows sealed during peak pollution hours'),
-    (Icons.local_drink_rounded,    'Stay Hydrated',   'Drink plenty of water to flush pollutants'),
-    (Icons.directions_run_rounded, 'Exercise Timing', 'Exercise early morning when AQI is lowest'),
-    (Icons.monitor_heart_rounded,  'Monitor Health',  'Watch for breathing issues; see a doctor promptly'),
-  ];
+  List<(IconData, String, String)> _tips(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      (Icons.masks_rounded,          l10n.tipMaskTitle,        l10n.tipMaskDesc),
+      (Icons.wind_power_rounded,     l10n.tipPurifierTitle,    l10n.tipPurifierDesc),
+      (Icons.window_rounded,         l10n.tipWindowsTitle,   l10n.tipWindowsDesc),
+      (Icons.local_drink_rounded,    l10n.tipHydrateTitle,   l10n.tipHydrateDesc),
+      (Icons.directions_run_rounded, l10n.tipExerciseTitle, l10n.tipExerciseDesc),
+      (Icons.monitor_heart_rounded,  l10n.tipMonitorTitle,  l10n.tipMonitorDesc),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -666,7 +672,7 @@ class _TipsGrid extends StatelessWidget {
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
       childAspectRatio: 1.35,
-      children: _tips.asMap().entries.map((e) {
+      children: _tips(context).asMap().entries.map((e) {
         return _TipCard(
           icon: e.value.$1,
           title: e.value.$2,
