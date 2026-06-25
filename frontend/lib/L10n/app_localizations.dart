@@ -182,6 +182,12 @@ abstract class AppLocalizations {
   /// **'Wind'**
   String get homeWind;
 
+  /// Location label on dropdown
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get homeLocation;
+
   /// Forecast screen title
   ///
   /// In en, this message translates to:
@@ -799,6 +805,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h ago'**
   String timeHoursAgo(int hours);
+
+  /// Next 24 hours section header
+  ///
+  /// In en, this message translates to:
+  /// **'Next 24 Hours'**
+  String get forecastNext24Hours;
+
+  /// Historical trends section header
+  ///
+  /// In en, this message translates to:
+  /// **'Historical Trends'**
+  String get forecastHistoricalTrends;
+
+  /// No data message
+  ///
+  /// In en, this message translates to:
+  /// **'No data available'**
+  String get forecastNoData;
+
+  /// ML notice banner
+  ///
+  /// In en, this message translates to:
+  /// **'ML predictions coming soon — showing estimated forecast based on current conditions.'**
+  String get forecastMlNotice;
+
+  /// AQI scale - Good
+  ///
+  /// In en, this message translates to:
+  /// **'Good (0-50)'**
+  String get aqiScaleGood;
+
+  /// AQI scale - Moderate
+  ///
+  /// In en, this message translates to:
+  /// **'Moderate (51-100)'**
+  String get aqiScaleModerate;
+
+  /// AQI scale - Sensitive
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitive (101-150)'**
+  String get aqiScaleSensitive;
+
+  /// AQI scale - Unhealthy
+  ///
+  /// In en, this message translates to:
+  /// **'Unhealthy (151-200)'**
+  String get aqiScaleUnhealthy;
+
+  /// AQI scale - Very Unhealthy
+  ///
+  /// In en, this message translates to:
+  /// **'Very Unhealthy (201+)'**
+  String get aqiScaleVeryUnhealthy;
+
+  /// Map retry button
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get mapRetry;
+
+  /// Dark mode enabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode on'**
+  String get settingsDarkModeOn;
+
+  /// Dark mode disabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode off'**
+  String get settingsDarkModeOff;
+
+  /// Notifications enabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications on'**
+  String get settingsNotifOn;
+
+  /// Notifications disabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications off'**
+  String get settingsNotifOff;
+
+  /// Biometric enabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric on'**
+  String get settingsBiometricOn;
+
+  /// Biometric disabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric off'**
+  String get settingsBiometricOff;
+
+  /// Cloud sync enabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud sync on'**
+  String get settingsCloudSyncOn;
+
+  /// Cloud sync disabled message
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud sync off'**
+  String get settingsCloudSyncOff;
+
+  /// Language selected message
+  ///
+  /// In en, this message translates to:
+  /// **'Language: {language}'**
+  String settingsLanguageSelected(String language);
+
+  /// Region selected message
+  ///
+  /// In en, this message translates to:
+  /// **'Region: {region}'**
+  String settingsRegionSelected(String region);
+
+  /// Station selected message
+  ///
+  /// In en, this message translates to:
+  /// **'Station: {station}'**
+  String settingsStationSelected(String station);
+
+  /// Threshold selected message
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold: {threshold}'**
+  String settingsThresholdSelected(String threshold);
+
+  /// Refresh selected message
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh: {interval}'**
+  String settingsRefreshSelected(String interval);
+
+  /// Rate app thanks message
+  ///
+  /// In en, this message translates to:
+  /// **'⭐ Thank you!'**
+  String get settingsRateThanks;
+
+  /// About dialog content
+  ///
+  /// In en, this message translates to:
+  /// **'Air Quality Monitoring App\nVersion 1.0.0\n\nMonitoring Dar es Salaam\'s air quality\nin real time using IoT sensors and ML-powered forecasting.'**
+  String get settingsAboutContent;
+
+  /// Hazardous alert message
+  ///
+  /// In en, this message translates to:
+  /// **'HAZARDOUS — health emergency. Stay indoors immediately.'**
+  String get alertHazardous;
+
+  /// Very unhealthy alert message
+  ///
+  /// In en, this message translates to:
+  /// **'Very unhealthy — avoid all outdoor exposure. Use air purifiers.'**
+  String get alertVeryUnhealthy;
+
+  /// Unhealthy alert message
+  ///
+  /// In en, this message translates to:
+  /// **'Unhealthy air — everyone should reduce outdoor activity now.'**
+  String get alertUnhealthy;
+
+  /// Sensitive alert message
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitive groups should take extra precautions outdoors.'**
+  String get alertSensitive;
+
+  /// Tips label
+  ///
+  /// In en, this message translates to:
+  /// **'tips'**
+  String get healthTips;
+
+  /// Health screen retry button
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get healthRetry;
 }
 
 class _AppLocalizationsDelegate
