@@ -53,6 +53,9 @@ class AppLocalizationsSw extends AppLocalizations {
   String get homeWind => 'Upepo';
 
   @override
+  String get homeLocation => 'Mahali';
+
+  @override
   String get forecastTitle => 'Utabiri wa AQI';
 
   @override
@@ -375,4 +378,111 @@ class AppLocalizationsSw extends AppLocalizations {
   String timeHoursAgo(int hours) {
     return 'masaa $hours yaliyopita';
   }
+
+  @override
+  String get forecastNext24Hours => 'Masaa 24 Yajayo';
+
+  @override
+  String get forecastHistoricalTrends => 'Mwenendo wa Kihistoria';
+
+  @override
+  String get forecastNoData => 'Hakuna data inayopatikana';
+
+  @override
+  String get forecastMlNotice =>
+      'Utabiri wa ML unakuja hivi karibuni — unaonyesha utabiri uliokadirika kulingana na hali za sasa.';
+
+  @override
+  String get aqiScaleGood => 'Nzuri (0-50)';
+
+  @override
+  String get aqiScaleModerate => 'Ya Wastani (51-100)';
+
+  @override
+  String get aqiScaleSensitive => 'Nyeti (101-150)';
+
+  @override
+  String get aqiScaleUnhealthy => 'Mbaya (151-200)';
+
+  @override
+  String get aqiScaleVeryUnhealthy => 'Mbaya Sana (201+)';
+
+  @override
+  String get mapRetry => 'Jaribu Tena';
+
+  @override
+  String get settingsDarkModeOn => 'Hali ya giza imewashwa';
+
+  @override
+  String get settingsDarkModeOff => 'Hali ya giza imezimwa';
+
+  @override
+  String get settingsNotifOn => 'Arifa zimefungwa';
+
+  @override
+  String get settingsNotifOff => 'Arifa zimezimwa';
+
+  @override
+  String get settingsBiometricOn => 'Kibiolojia imewashwa';
+
+  @override
+  String get settingsBiometricOff => 'Kibiolojia imezimwa';
+
+  @override
+  String get settingsCloudSyncOn => 'Usawazishaji wa wingu umewashwa';
+
+  @override
+  String get settingsCloudSyncOff => 'Usawazishaji wa wingu umezimwa';
+
+  @override
+  String settingsLanguageSelected(String language) {
+    return 'Lugha: $language';
+  }
+
+  @override
+  String settingsRegionSelected(String region) {
+    return 'Mkoa: $region';
+  }
+
+  @override
+  String settingsStationSelected(String station) {
+    return 'Kituo: $station';
+  }
+
+  @override
+  String settingsThresholdSelected(String threshold) {
+    return 'Kiwango: $threshold';
+  }
+
+  @override
+  String settingsRefreshSelected(String interval) {
+    return 'Kusasisha: $interval';
+  }
+
+  @override
+  String get settingsRateThanks => '⭐ Asante!';
+
+  @override
+  String get settingsAboutContent =>
+      'Programu ya Ufuatiliaji wa Ubora wa Hewa\nToleo 1.0.0\n\nInafuatilia ubora wa hewa wa Dar es Salaam\nkwa wakati halisi kwa kutumia vituo vya IoT na utabiri unaotumia ML.';
+
+  @override
+  String get alertHazardous => 'HATARI — dharura ya afya. Kaa ndani mara moja.';
+
+  @override
+  String get alertVeryUnhealthy =>
+      'Mbaya sana — epuke mawasiliano yote ya nje. Tumia vitakasishaji vya hewa.';
+
+  @override
+  String get alertUnhealthy =>
+      'Hewa mbaya — kila mtu apunguze shughuli za nje sasa.';
+
+  @override
+  String get alertSensitive => 'Makundi nyeti yachukue tahadhari za ziada nje.';
+
+  @override
+  String get healthTips => 'vidokezo';
+
+  @override
+  String get healthRetry => 'Jaribu Tena';
 }
