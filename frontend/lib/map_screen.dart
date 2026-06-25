@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'air_quality_data.dart';
 import 'api_service.dart';
 import 'app_theme.dart';
+import 'L10n/app_localizations.dart';
 
 class _DeviceLocation {
   final String deviceId;
@@ -206,7 +207,7 @@ class _MapScreenState extends State<MapScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Air Quality Map',
+                        Text(AppLocalizations.of(context)!.mapTitle,
                             style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
@@ -251,17 +252,17 @@ class _MapScreenState extends State<MapScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('AQI Scale',
+                    Text(AppLocalizations.of(context)!.mapAqiScale,
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             color: palette.textSecondary)),
                     const SizedBox(height: 6),
-                    _legendItem(context, AppColors.good, 'Good (0-50)'),
-                    _legendItem(context, AppColors.moderate, 'Moderate (51-100)'),
-                    _legendItem(context, AppColors.sensitiveGroups, 'Sensitive (101-150)'),
-                    _legendItem(context, AppColors.unhealthy, 'Unhealthy (151-200)'),
-                    _legendItem(context, AppColors.veryUnhealthy, 'Very Unhealthy (201+)'),
+                    _legendItem(context, AppColors.good, AppLocalizations.of(context)!.aqiScaleGood),
+                    _legendItem(context, AppColors.moderate, AppLocalizations.of(context)!.aqiScaleModerate),
+                    _legendItem(context, AppColors.sensitiveGroups, AppLocalizations.of(context)!.aqiScaleSensitive),
+                    _legendItem(context, AppColors.unhealthy, AppLocalizations.of(context)!.aqiScaleUnhealthy),
+                    _legendItem(context, AppColors.veryUnhealthy, AppLocalizations.of(context)!.aqiScaleVeryUnhealthy),
                   ],
                 ),
               ),
@@ -297,7 +298,7 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     GestureDetector(
                       onTap: _loadData,
-                      child: const Text('Retry',
+                      child: Text(AppLocalizations.of(context)!.mapRetry,
                           style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
