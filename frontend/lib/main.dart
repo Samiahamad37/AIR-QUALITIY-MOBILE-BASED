@@ -12,14 +12,14 @@ import 'map_screen.dart';
 import 'screen2.dart';
 import 'setting.dart';
 import 'shared_data_service.dart';
-// import 'login_screen.dart'; -
-// import 'register_screen.dart';
+import 'auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (!kIsWeb) {
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
+  await authService.loadSession();
   runApp(const AirQualityApp());
 }
 
@@ -65,8 +65,13 @@ class AirQualityApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppState(
       notifier: appSettings,
-      child: ChangeNotifierProvider<SharedDataService>.value(
-        value: sharedDataService,
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider<SharedDataService>.value(
+            value: sharedDataService,
+          ),
+          ChangeNotifierProvider<AuthService>.value(value: authService),
+        ],
         child: AnimatedBuilder(
         // ✅ This rebuild is what makes theme/language actually apply
         animation: appSettings,

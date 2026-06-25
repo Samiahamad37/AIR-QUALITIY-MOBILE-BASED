@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'main.dart' show AppState;
+import 'auth_service.dart';
+import 'login_screen.dart';
+import 'register_screen.dart';
+import 'report_analysis_screen.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';  
 
 // ─── Theme-aware colors — work in both light & dark ────────────────────────────
@@ -67,6 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (ctx, _) {
           //  Read directly from the SAME global model main.dart uses
           final global = AppState.of(ctx);
+          final auth = context.watch<AuthService>();
 
           return Scaffold(
             backgroundColor: _bg(ctx),
@@ -93,7 +99,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
 
-                      _GuestCard(ctx: ctx),
+                      _GuestCard(
+                        ctx: ctx,
+                        auth: auth,
+                        onTap: () => auth.isLoggedIn
+                            ? _openReports(ctx)
+                            : _openLogin(ctx),
+                      ),
                       const SizedBox(height: 28),
 
                       // ── Preferences ──────────────────────────────
@@ -257,6 +269,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 8),
                       _Group(ctx: ctx, children: [
                         _Nav(ctx: ctx,
+                          icon: CupertinoIcons.chart_bar_alt_fill,
+                          iconBg: const Color(0xFF34C759),
+                          label: 'Reports & Analysis',
+                          value: auth.isLoggedIn ? null : 'Sign in',
+                          onTap: () => _openReports(ctx)),
+                        _Nav(ctx: ctx,
                           icon: CupertinoIcons.shield_fill,
                           iconBg: const Color(0xFF5856D6),
                           label: AppLocalizations.of(ctx)!.settingsPrivacy, onTap: () {}),
@@ -269,10 +287,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           iconBg: const Color(0xFFFF9500),
                           label: AppLocalizations.of(ctx)!.settingsRate,
                           onTap: () => _snack(ctx, AppLocalizations.of(ctx)!.settingsRateThanks)),
+                        if (auth.isLoggedIn)
+                          _Nav(ctx: ctx,
+                            icon: CupertinoIcons.square_arrow_right,
+                            iconBg: _accent,
+                            label: 'Sign Out',
+                            onTap: () => _logout(ctx, auth)),
                       ]),
 
-                      const SizedBox(height: 28),
-                      _Cta(ctx: ctx),
+                      if (!auth.isLoggedIn) ...[
+                        const SizedBox(height: 28),
+                        _Cta(ctx: ctx, onTap: () => _openRegister(ctx)),
+                      ],
                       const SizedBox(height: 32),
 
                       Center(child: Text(AppLocalizations.of(ctx)!.settingsFooter,
@@ -358,6 +384,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ));
   }
 
+  void _openLogin(BuildContext c) => Navigator.of(c).push(
+      MaterialPageRoute(builder: (_) => const LoginScreen()));
+
+  void _openRegister(BuildContext c) => Navigator.of(c).push(
+      MaterialPageRoute(builder: (_) => const RegisterScreen()));
+
+  void _openReports(BuildContext c) {
+    if (c.read<AuthService>().isLoggedIn) {
+      Navigator.of(c).push(
+          MaterialPageRoute(builder: (_) => const ReportAnalysisScreen()));
+    } else {
+      _snack(c, 'Please sign in to access Reports & Analysis');
+      _openLogin(c);
+    }
+  }
+
+  Future<void> _logout(BuildContext c, AuthService auth) async {
+    await auth.logout();
+    if (!mounted) return;
+    _snack(c, 'Signed out');
+  }
+
   void _snack(BuildContext c, String msg) {
     ScaffoldMessenger.of(c).clearSnackBars();
     ScaffoldMessenger.of(c).showSnackBar(SnackBar(
@@ -374,38 +422,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _GuestCard extends StatelessWidget {
   final BuildContext ctx;
-  const _GuestCard({required this.ctx});
+  final AuthService auth;
+  final VoidCallback onTap;
+  const _GuestCard({required this.ctx, required this.auth, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: _card(ctx),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border(ctx))),
-    child: Row(children: [
-      Container(width: 52, height: 52,
-          decoration: BoxDecoration(color: _bg(ctx), shape: BoxShape.circle,
-              border: Border.all(color: _border(ctx))),
-          child: Icon(CupertinoIcons.person_fill, size: 26,
-              color: _textSub(ctx))),
-      const SizedBox(width: 14),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppLocalizations.of(ctx)!.settingsGuestName, style: TextStyle(fontSize: 16,
-                fontWeight: FontWeight.w600, color: _textMain(ctx))),
-            const SizedBox(height: 2),
-            Text(AppLocalizations.of(ctx)!.settingsGuestSub,
-                style: TextStyle(fontSize: 13, color: _textSub(ctx))),
-          ])),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(color: _accent,
-            borderRadius: BorderRadius.circular(99)),
-        child: Text(AppLocalizations.of(ctx)!.settingsSignIn, style: TextStyle(fontSize: 13,
-            fontWeight: FontWeight.w600, color: Colors.white)),
+  Widget build(BuildContext context) {
+    final loggedIn = auth.isLoggedIn;
+    final name = loggedIn
+        ? (auth.username ?? 'Account')
+        : AppLocalizations.of(ctx)!.settingsGuestName;
+    final sub = loggedIn
+        ? (auth.email ?? 'Signed in')
+        : AppLocalizations.of(ctx)!.settingsGuestSub;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: _card(ctx),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _border(ctx))),
+        child: Row(children: [
+          Container(width: 52, height: 52,
+              decoration: BoxDecoration(
+                  color: loggedIn ? _accent : _bg(ctx),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _border(ctx))),
+              child: Icon(CupertinoIcons.person_fill, size: 26,
+                  color: loggedIn ? Colors.white : _textSub(ctx))),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: TextStyle(fontSize: 16,
+                    fontWeight: FontWeight.w600, color: _textMain(ctx))),
+                const SizedBox(height: 2),
+                Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: _textSub(ctx))),
+              ])),
+          if (!loggedIn)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(color: _accent,
+                  borderRadius: BorderRadius.circular(99)),
+              child: Text(AppLocalizations.of(ctx)!.settingsSignIn,
+                  style: const TextStyle(fontSize: 13,
+                      fontWeight: FontWeight.w600, color: Colors.white)),
+            )
+          else
+            Icon(CupertinoIcons.chevron_right, size: 16, color: _textSub(ctx)),
+        ]),
       ),
-    ]),
-  );
+    );
+  }
 }
 
 class _Group extends StatelessWidget {
@@ -493,10 +563,14 @@ class _Nav extends StatelessWidget {
 
 class _Cta extends StatelessWidget {
   final BuildContext ctx;
-  const _Cta({required this.ctx});
+  final VoidCallback onTap;
+  const _Cta({required this.ctx, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    behavior: HitTestBehavior.opaque,
+    child: Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
@@ -522,6 +596,7 @@ class _Cta extends StatelessWidget {
             fontWeight: FontWeight.w700, color: _accent)),
       ),
     ]),
+    ),
   );
 }
 
