@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'L10n/app_localizations.dart';
 import 'app_theme.dart';
 import 'screens.dart';
 import 'health_screen.dart';
@@ -72,12 +74,14 @@ class AirQualityApp extends StatelessWidget {
           return MaterialApp(
             title: 'AirQuality',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,           // must exist in app_theme.dart
+            theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: appSettings.darkMode
                 ? ThemeMode.dark
-                : ThemeMode.light,           // ✅ switches here
+                : ThemeMode.light,
             locale: _localeFor(appSettings.language),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: const MainShell(),
           );
         },
