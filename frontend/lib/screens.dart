@@ -7,6 +7,7 @@ import 'app_theme.dart';
 import 'common_widget.dart';
 // import 'api_service.dart';
 import 'shared_data_service.dart';
+import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 const String defaultDevice = 'lands-building';
 
@@ -57,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => service.loadData(),
-                    child: const Text('Retry'),
+                    child: Text(AppLocalizations.of(context)!.errorRetry),
                   ),
                 ],
               ),
@@ -93,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           dropdownColor: palette.card,
                           style: TextStyle(color: palette.textPrimary),
                           decoration: InputDecoration(
-                            labelText: 'Location',
+                            labelText: AppLocalizations.of(context)!.homeLocation,
                             labelStyle:
                                 TextStyle(color: palette.textSecondary),
                             border: OutlineInputBorder(
@@ -131,14 +132,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           MetricChip(
                             icon: Icons.thermostat_rounded,
                             value: '${data.temperature.toStringAsFixed(1)}°C',
-                            label: 'Temperature',
+                            label: AppLocalizations.of(context)!.homeTemperature,
                             color: const Color(0xFFFB923C),
                           ),
                           const SizedBox(width: 8),
                           MetricChip(
                             icon: Icons.water_drop_rounded,
                             value: '${data.humidity.round()}%',
-                            label: 'Humidity',
+                            label: AppLocalizations.of(context)!.homeHumidity,
                             color: const Color(0xFF60A5FA),
                           ),
                           const SizedBox(width: 8),
@@ -155,8 +156,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // ─── Today's AQI Trend ────────────────────────────────────
                   if (data.hourlyData.isNotEmpty) ...[
-                    const SliverToBoxAdapter(
-                      child: SectionHeader(title: "Today's AQI Trend"),
+                    SliverToBoxAdapter(
+                      child: SectionHeader(title: AppLocalizations.of(context)!.homeTodayTrend),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
@@ -183,8 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
 
                   // ─── Pollutants Breakdown ─────────────────────────────────
-                  const SliverToBoxAdapter(
-                    child: SectionHeader(title: 'Pollutant Breakdown'),
+                  SliverToBoxAdapter(
+                    child: SectionHeader(title: AppLocalizations.of(context)!.homePollutants),
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
@@ -203,8 +204,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
 
                   // ─── Health Advisory ──────────────────────────────────────
-                  const SliverToBoxAdapter(
-                    child: SectionHeader(title: 'Health Advisory'),
+                  SliverToBoxAdapter(
+                    child: SectionHeader(title: AppLocalizations.of(context)!.homeHealthAdvisory),
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
