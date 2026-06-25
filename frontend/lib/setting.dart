@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'main.dart' show AppState;  
+import 'main.dart' show AppState;
+import 'package:air_quality_monitor/L10n/app_localizations.dart';  
 
 // ─── Theme-aware colors — work in both light & dark ────────────────────────────
 
@@ -77,7 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Settings', style: TextStyle(fontSize: 22,
+                    Text(AppLocalizations.of(ctx)!.settingsTitle, style: TextStyle(fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: _textMain(ctx), letterSpacing: -0.5)),
                     _iconBtn(ctx, CupertinoIcons.search, () {}),
@@ -96,51 +97,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 28),
 
                       // ── Preferences ──────────────────────────────
-                      _label(ctx, 'Preferences'),
+                      _label(ctx, AppLocalizations.of(ctx)!.settingsPreferences),
                       const SizedBox(height: 8),
                       _Group(ctx: ctx, children: [
                         _Toggle(ctx: ctx,
                           icon: CupertinoIcons.moon_fill,
                           iconBg: const Color(0xFF636366),
-                          label: 'Dark Mode',
-                          sub: 'App appearance',
+                          label: AppLocalizations.of(ctx)!.settingsDarkMode,
+                          sub: AppLocalizations.of(ctx)!.settingsDarkModeSub,
                           value: global.darkMode,
                           onChanged: (v) {
                             global.setDarkMode(v);
-                            _snack(ctx, 'Dark mode ${v ? "on" : "off"}');
+                            _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsDarkModeOn : AppLocalizations.of(ctx)!.settingsDarkModeOff);
                           },
                         ),
                         _Toggle(ctx: ctx,
                           icon: CupertinoIcons.bell_fill,
                           iconBg: _accent,
-                          label: 'Notifications',
-                          sub: 'AQI alerts & updates',
+                          label: AppLocalizations.of(ctx)!.settingsNotifications,
+                          sub: AppLocalizations.of(ctx)!.settingsNotifSub,
                           value: _local.notifications,
                           onChanged: (v) {
                             _local.toggle('notifications', v);
-                            _snack(ctx, 'Notifications ${v ? "on" : "off"}');
+                            _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsNotifOn : AppLocalizations.of(ctx)!.settingsNotifOff);
                           },
                         ),
                         _Toggle(ctx: ctx,
                           icon: CupertinoIcons.person_crop_circle_fill,
                           iconBg: const Color(0xFF8E8E93),
-                          label: 'Biometric Unlock',
-                          sub: 'Fingerprint / Face ID',
+                          label: AppLocalizations.of(ctx)!.settingsBiometric,
+                          sub: AppLocalizations.of(ctx)!.settingsBiometricSub,
                           value: _local.biometric,
                           onChanged: (v) {
                             _local.toggle('biometric', v);
-                            _snack(ctx, 'Biometric ${v ? "on" : "off"}');
+                            _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsBiometricOn : AppLocalizations.of(ctx)!.settingsBiometricOff);
                           },
                         ),
                         _Toggle(ctx: ctx,
                           icon: CupertinoIcons.arrow_2_circlepath,
                           iconBg: const Color(0xFF30B0C7),
-                          label: 'Cloud Sync',
-                          sub: 'Sync data across devices',
+                          label: AppLocalizations.of(ctx)!.settingsCloudSync,
+                          sub: AppLocalizations.of(ctx)!.settingsCloudSyncSub,
                           value: _local.cloudSync,
                           onChanged: (v) {
                             _local.toggle('cloudSync', v);
-                            _snack(ctx, 'Cloud sync ${v ? "on" : "off"}');
+                            _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsCloudSyncOn : AppLocalizations.of(ctx)!.settingsCloudSyncOff);
                           },
                         ),
                       ]),
@@ -148,45 +149,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 28),
 
                       // ── General ──────────────────────────────────
-                      _label(ctx, 'General'),
+                      _label(ctx, AppLocalizations.of(ctx)!.settingsGeneral),
                       const SizedBox(height: 8),
                       _Group(ctx: ctx, children: [
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.globe,
                           iconBg: const Color(0xFF007AFF),
-                          label: 'Language',
+                          label: AppLocalizations.of(ctx)!.settingsLanguage,
                           // Shows global value
                           value: global.language,
                           onTap: () => _pick(ctx,
-                            title: 'Language',
+                            title: AppLocalizations.of(ctx)!.settingsLanguage,
                             options: const ['English', 'Kiswahili'],
                             current: global.language,
                             //  Writes to global, MaterialApp rebuilds
                             onSelect: (v) {
                               global.setLanguage(v);
-                              _snack(ctx, 'Language: $v');
+                              _snack(ctx, AppLocalizations.of(ctx)!.settingsLanguageSelected(v));
                             },
                           ),
                         ),
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.location_fill,
                           iconBg: const Color(0xFFFF9500),
-                          label: 'Region',
+                          label: AppLocalizations.of(ctx)!.settingsRegion,
                           value: _local.region,
                           onTap: () => _pick(ctx,
-                            title: 'Region',
+                            title: AppLocalizations.of(ctx)!.settingsRegion,
                             options: const ['TZ', 'KE', 'UG', 'RW', 'ZM'],
                             current: _local.region,
                             onSelect: (v) {
                               _local.set('region', v);
-                              _snack(ctx, 'Region: $v');
+                              _snack(ctx, AppLocalizations.of(ctx)!.settingsRegionSelected(v));
                             },
                           ),
                         ),
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.info_circle_fill,
                           iconBg: const Color(0xFF007AFF),
-                          label: 'About',
+                          label: AppLocalizations.of(ctx)!.settingsAbout,
                           value: 'v1.0.0',
                           onTap: () => _aboutDialog(ctx),
                         ),
@@ -195,55 +196,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 28),
 
                       // ── Air Quality ───────────────────────────────
-                      _label(ctx, 'Air Quality'),
+                      _label(ctx, AppLocalizations.of(ctx)!.settingsAirQuality),
                       const SizedBox(height: 8),
                       _Group(ctx: ctx, children: [
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.location_circle_fill,
                           iconBg: const Color(0xFF30B0C7),
-                          label: 'Default Station',
+                          label: AppLocalizations.of(ctx)!.settingsDefaultStation,
                           value: _local.station,
                           onTap: () => _pick(ctx,
-                            title: 'Default Station',
+                            title: AppLocalizations.of(ctx)!.settingsDefaultStation,
                             options: const ['Kinondoni', 'Ilala', 'Temeke',
                                             'Ubungo', 'Kigamboni'],
                             current: _local.station,
                             onSelect: (v) {
                               _local.set('station', v);
-                              _snack(ctx, 'Station: $v');
+                              _snack(ctx, AppLocalizations.of(ctx)!.settingsStationSelected(v));
                             },
                           ),
                         ),
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.bell_circle_fill,
                           iconBg: _accent,
-                          label: 'AQI Alert Threshold',
+                          label: AppLocalizations.of(ctx)!.settingsAqiThreshold,
                           value: _local.aqiThreshold.split(' ').first,
                           onTap: () => _pick(ctx,
-                            title: 'AQI Alert Threshold',
+                            title: AppLocalizations.of(ctx)!.settingsAqiThreshold,
                             options: const ['50 — Good', '100 — Moderate',
                                             '150 — Sensitive', '200 — Unhealthy',
                                             '300 — Very Unhealthy'],
                             current: _local.aqiThreshold,
                             onSelect: (v) {
                               _local.set('aqiThreshold', v);
-                              _snack(ctx, 'Threshold: $v');
+                              _snack(ctx, AppLocalizations.of(ctx)!.settingsThresholdSelected(v));
                             },
                           ),
                         ),
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.refresh_circled_solid,
                           iconBg: const Color(0xFF34C759),
-                          label: 'Refresh Interval',
+                          label: AppLocalizations.of(ctx)!.settingsRefreshInterval,
                           value: _local.refreshInterval,
                           onTap: () => _pick(ctx,
-                            title: 'Refresh Interval',
+                            title: AppLocalizations.of(ctx)!.settingsRefreshInterval,
                             options: const ['1 min', '2 min', '5 min',
                                             '10 min', '30 min'],
                             current: _local.refreshInterval,
                             onSelect: (v) {
                               _local.set('refreshInterval', v);
-                              _snack(ctx, 'Refresh: $v');
+                              _snack(ctx, AppLocalizations.of(ctx)!.settingsRefreshSelected(v));
                             },
                           ),
                         ),
@@ -252,29 +253,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 28),
 
                       // ── Account ────────────────────────────────────
-                      _label(ctx, 'Account'),
+                      _label(ctx, AppLocalizations.of(ctx)!.settingsAccount),
                       const SizedBox(height: 8),
                       _Group(ctx: ctx, children: [
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.shield_fill,
                           iconBg: const Color(0xFF5856D6),
-                          label: 'Privacy & Security', onTap: () {}),
+                          label: AppLocalizations.of(ctx)!.settingsPrivacy, onTap: () {}),
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.question_circle_fill,
                           iconBg: const Color(0xFF32ADE6),
-                          label: 'Help & Support', onTap: () {}),
+                          label: AppLocalizations.of(ctx)!.settingsHelp, onTap: () {}),
                         _Nav(ctx: ctx,
                           icon: CupertinoIcons.star_fill,
                           iconBg: const Color(0xFFFF9500),
-                          label: 'Rate the App',
-                          onTap: () => _snack(ctx, '⭐ Thank you!')),
+                          label: AppLocalizations.of(ctx)!.settingsRate,
+                          onTap: () => _snack(ctx, AppLocalizations.of(ctx)!.settingsRateThanks)),
                       ]),
 
                       const SizedBox(height: 28),
                       _Cta(ctx: ctx),
                       const SizedBox(height: 32),
 
-                      Center(child: Text('AirWatch v1.0.0 · Dar es Salaam',
+                      Center(child: Text(AppLocalizations.of(ctx)!.settingsFooter,
                           style: TextStyle(fontSize: 12, color: _textSub(ctx)))),
                       const SizedBox(height: 100),
                     ],
@@ -343,18 +344,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _aboutDialog(BuildContext c) {
+    final l10n = AppLocalizations.of(c);
     showDialog(context: c, builder: (_) => AlertDialog(
       backgroundColor: _card(c),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text('AirWatch',
           style: TextStyle(color: _textMain(c), fontWeight: FontWeight.w700)),
       content: Text(
-          'Air Quality Monitoring App\nVersion 1.0.0\n\n'
-          'Monitoring Dar es Salaam\'s air quality\n'
-          'in real time using IoT sensors and ML-powered forecasting.',
+          l10n.settingsAboutContent,
           style: TextStyle(color: _textSub(c), fontSize: 13, height: 1.5)),
       actions: [TextButton(onPressed: () => Navigator.pop(c),
-          child: const Text('Close', style: TextStyle(color: _accent)))],
+          child: Text(l10n.settingsClose, style: TextStyle(color: _accent)))],
     ));
   }
 
@@ -391,17 +391,17 @@ class _GuestCard extends StatelessWidget {
       const SizedBox(width: 14),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Guest User', style: TextStyle(fontSize: 16,
+            Text(AppLocalizations.of(ctx)!.settingsGuestName, style: TextStyle(fontSize: 16,
                 fontWeight: FontWeight.w600, color: _textMain(ctx))),
             const SizedBox(height: 2),
-            Text('Sign in to sync your data',
+            Text(AppLocalizations.of(ctx)!.settingsGuestSub,
                 style: TextStyle(fontSize: 13, color: _textSub(ctx))),
           ])),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(color: _accent,
             borderRadius: BorderRadius.circular(99)),
-        child: const Text('Sign In', style: TextStyle(fontSize: 13,
+        child: Text(AppLocalizations.of(ctx)!.settingsSignIn, style: TextStyle(fontSize: 13,
             fontWeight: FontWeight.w600, color: Colors.white)),
       ),
     ]),
@@ -505,12 +505,12 @@ class _Cta extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
     ),
     child: Row(children: [
-      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Create an account', style: TextStyle(fontSize: 15,
+            Text(AppLocalizations.of(ctx)!.settingsCreateAccount, style: TextStyle(fontSize: 15,
                 fontWeight: FontWeight.w700, color: Colors.white)),
             SizedBox(height: 4),
-            Text('Save stations, history\nand personalized alerts.',
+            Text(AppLocalizations.of(ctx)!.settingsCtaSub,
                 style: TextStyle(fontSize: 12, color: Colors.white70,
                     height: 1.4)),
           ])),
@@ -518,7 +518,7 @@ class _Cta extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(color: Colors.white,
             borderRadius: BorderRadius.circular(99)),
-        child: const Text('Get Started', style: TextStyle(fontSize: 13,
+        child: Text(AppLocalizations.of(ctx)!.settingsGetStarted, style: TextStyle(fontSize: 13,
             fontWeight: FontWeight.w700, color: _accent)),
       ),
     ]),
