@@ -53,6 +53,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeWind => 'Wind';
 
   @override
+  String get homeLocation => 'Location';
+
+  @override
   String get forecastTitle => 'AQI Forecast';
 
   @override
@@ -377,4 +380,113 @@ class AppLocalizationsEn extends AppLocalizations {
   String timeHoursAgo(int hours) {
     return '${hours}h ago';
   }
+
+  @override
+  String get forecastNext24Hours => 'Next 24 Hours';
+
+  @override
+  String get forecastHistoricalTrends => 'Historical Trends';
+
+  @override
+  String get forecastNoData => 'No data available';
+
+  @override
+  String get forecastMlNotice =>
+      'ML predictions coming soon — showing estimated forecast based on current conditions.';
+
+  @override
+  String get aqiScaleGood => 'Good (0-50)';
+
+  @override
+  String get aqiScaleModerate => 'Moderate (51-100)';
+
+  @override
+  String get aqiScaleSensitive => 'Sensitive (101-150)';
+
+  @override
+  String get aqiScaleUnhealthy => 'Unhealthy (151-200)';
+
+  @override
+  String get aqiScaleVeryUnhealthy => 'Very Unhealthy (201+)';
+
+  @override
+  String get mapRetry => 'Retry';
+
+  @override
+  String get settingsDarkModeOn => 'Dark mode on';
+
+  @override
+  String get settingsDarkModeOff => 'Dark mode off';
+
+  @override
+  String get settingsNotifOn => 'Notifications on';
+
+  @override
+  String get settingsNotifOff => 'Notifications off';
+
+  @override
+  String get settingsBiometricOn => 'Biometric on';
+
+  @override
+  String get settingsBiometricOff => 'Biometric off';
+
+  @override
+  String get settingsCloudSyncOn => 'Cloud sync on';
+
+  @override
+  String get settingsCloudSyncOff => 'Cloud sync off';
+
+  @override
+  String settingsLanguageSelected(String language) {
+    return 'Language: $language';
+  }
+
+  @override
+  String settingsRegionSelected(String region) {
+    return 'Region: $region';
+  }
+
+  @override
+  String settingsStationSelected(String station) {
+    return 'Station: $station';
+  }
+
+  @override
+  String settingsThresholdSelected(String threshold) {
+    return 'Threshold: $threshold';
+  }
+
+  @override
+  String settingsRefreshSelected(String interval) {
+    return 'Refresh: $interval';
+  }
+
+  @override
+  String get settingsRateThanks => '⭐ Thank you!';
+
+  @override
+  String get settingsAboutContent =>
+      'Air Quality Monitoring App\nVersion 1.0.0\n\nMonitoring Dar es Salaam\'s air quality\nin real time using IoT sensors and ML-powered forecasting.';
+
+  @override
+  String get alertHazardous =>
+      'HAZARDOUS — health emergency. Stay indoors immediately.';
+
+  @override
+  String get alertVeryUnhealthy =>
+      'Very unhealthy — avoid all outdoor exposure. Use air purifiers.';
+
+  @override
+  String get alertUnhealthy =>
+      'Unhealthy air — everyone should reduce outdoor activity now.';
+
+  @override
+  String get alertSensitive =>
+      'Sensitive groups should take extra precautions outdoors.';
+
+  @override
+  String get healthTips => 'tips';
+
+  @override
+  String get healthRetry => 'Retry';
 }
