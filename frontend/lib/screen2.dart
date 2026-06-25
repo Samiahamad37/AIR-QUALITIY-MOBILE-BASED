@@ -8,6 +8,7 @@ import 'api_service.dart';
 import 'app_theme.dart';
 import 'common_widget.dart';
 import 'shared_data_service.dart';
+import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 const String defaultDevice = 'lands-building';
 
@@ -131,7 +132,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                     dropdownColor: palette.card,
                                     style: TextStyle(color: palette.textPrimary),
                                     decoration: InputDecoration(
-                                      labelText: 'Location',
+                                      labelText: AppLocalizations.of(context)!.homeLocation,
                                       labelStyle: TextStyle(
                                           color: palette.textSecondary),
                                       border: OutlineInputBorder(
@@ -179,9 +180,9 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                 const Icon(Icons.science_rounded,
                                     color: Color(0xFF60A5FA), size: 18),
                                 const SizedBox(width: 10),
-                                const Expanded(
+                                Expanded(
                                   child: Text(
-                                    'ML predictions coming soon — showing estimated forecast based on current conditions.',
+                                    AppLocalizations.of(context)!.forecastMlNotice,
                                     style: TextStyle(
                                         fontSize: 12,
                                         color: Color(0xFF93C5FD),
@@ -194,8 +195,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
                         ),
 
                         // ── 24h Hourly Forecast ──────────────────────────
-                        const SliverToBoxAdapter(
-                          child: SectionHeader(title: 'Next 24 Hours'),
+                        SliverToBoxAdapter(
+                          child: SectionHeader(title: AppLocalizations.of(context)!.forecastNext24Hours),
                         ),
                         SliverToBoxAdapter(
                           child: Padding(
@@ -214,13 +215,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _chartLegend(context, AppColors.good, 'Good'),
+                                    _chartLegend(context, AppColors.good, AppLocalizations.of(context)!.aqiGood),
                                     _chartLegend(
-                                        context, AppColors.moderate, 'Moderate'),
+                                        context, AppColors.moderate, AppLocalizations.of(context)!.aqiModerate),
                                     _chartLegend(context, AppColors.sensitiveGroups,
-                                        'Sensitive'),
+                                        AppLocalizations.of(context)!.aqiSensitive),
                                     _chartLegend(
-                                        context, AppColors.unhealthy, 'Unhealthy'),
+                                        context, AppColors.unhealthy, AppLocalizations.of(context)!.aqiUnhealthy),
                                   ],
                                 ),
                               ]),
@@ -229,8 +230,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
                         ),
 
                         // ── 7-Day Forecast ───────────────────────────────
-                        const SliverToBoxAdapter(
-                          child: SectionHeader(title: '7-Day Forecast'),
+                        SliverToBoxAdapter(
+                          child: SectionHeader(title: AppLocalizations.of(context)!.forecast7Day),
                         ),
                         SliverToBoxAdapter(
                           child: SizedBox(
@@ -247,8 +248,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
                         ),
 
                         // ── Historical Trends ────────────────────────────
-                        const SliverToBoxAdapter(
-                          child: SectionHeader(title: 'Historical Trends'),
+                        SliverToBoxAdapter(
+                          child: SectionHeader(title: AppLocalizations.of(context)!.forecastHistoricalTrends),
                         ),
 
                         // Pollutant selector
@@ -374,7 +375,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                   ? SizedBox(
                                       height: 180,
                                       child: Center(
-                                        child: Text('No data available',
+                                        child: Text(AppLocalizations.of(context)!.forecastNoData,
                                             style: TextStyle(
                                                 color:
                                                     palette.textSecondary)),
@@ -416,7 +417,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Forecast',
+                Text(AppLocalizations.of(context)!.forecastTitle,
                     style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -609,7 +610,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
               onPressed: () => service.loadData(),
-              child: const Text('Retry')),
+              child: Text(AppLocalizations.of(context)!.errorRetry)),
         ]),
       ),
     );
