@@ -1,57 +1,157 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'app_theme.dart';
+import 'auth_service.dart';
+import 'auth_widgets.dart';
+import 'register_screen.dart';
 
+/// Sign-in screen. Pops with `true` on success so callers can react.
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  Future<void> login() async {
-    final response = await http.post(
-      Uri.parse('https://your-domain.com/api/token/'),  // Change URL
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': _usernameController.text,
-        'password': _passwordController.text,
-      }),
-    );
+  bool _isLoading = false;
+  bool _obscurePassword = true;
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      String accessToken = data['access'];
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
-      // Save token
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', accessToken);
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
 
-      // Navigate to home
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
+    try {
+      await context.read<AuthService>().login(
+            username: _usernameController.text.trim(),
+            password: _passwordController.text,
+          );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed!')),
+        const SnackBar(
+          content: Text('Welcome back!'),
+          backgroundColor: AppColors.good,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
+      Navigator.of(context).pop(true);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.unhealthy,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+
     return Scaffold(
-      appBar: AppBar(title: Text("Login")),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(controller: _usernameController, decoration: InputDecoration(labelText: "Username")),
-            TextField(controller: _passwordController, obscureText: true, decoration: InputDecoration(labelText: "Password")),
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: login, child: Text("Login")),
-          ],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Sign In'),
+        foregroundColor: palette.textPrimary,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const AuthHeader(
+                  icon: Icons.lock_outline_rounded,
+                  title: 'Welcome back',
+                  subtitle:
+                      'Sign in to view your air-quality reports and analysis.',
+                ),
+                const SizedBox(height: 32),
+                AuthTextField(
+                  controller: _usernameController,
+                  label: 'Username',
+                  icon: Icons.person_outline_rounded,
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Username is required' : null,
+                ),
+                const SizedBox(height: 16),
+                AuthTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  icon: Icons.lock_outline_rounded,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _login(),
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: palette.textSecondary,
+                      size: 20,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Password is required' : null,
+                ),
+                const SizedBox(height: 28),
+                AuthPrimaryButton(
+                  label: 'Sign In',
+                  isLoading: _isLoading,
+                  onPressed: _login,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Don't have an account? ",
+                      style: TextStyle(color: palette.textSecondary, fontSize: 14),
+                    ),
+                    GestureDetector(
+                      onTap: _isLoading
+                          ? null
+                          : () => Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterScreen(),
+                                ),
+                              ),
+                      child: const Text(
+                        'Register',
+                        style: TextStyle(
+                          color: AppColors.good,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
