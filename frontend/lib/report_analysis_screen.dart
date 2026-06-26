@@ -7,12 +7,10 @@ import 'api_service.dart';
 import 'app_theme.dart';
 import 'auth_service.dart';
 import 'shared_data_service.dart';
+import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
-/// Reports & Analysis screen — only reachable by signed-in users.
-///
-/// Summarizes recent air-quality readings for the selected device: average /
-/// min / max AQI, dominant pollutant, an AQI trend chart and per-pollutant
-/// averages, plus a short written assessment.
+
+
 class ReportAnalysisScreen extends StatefulWidget {
   const ReportAnalysisScreen({super.key});
 
