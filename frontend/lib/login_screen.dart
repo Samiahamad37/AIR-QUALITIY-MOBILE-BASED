@@ -4,8 +4,8 @@ import 'app_theme.dart';
 import 'auth_service.dart';
 import 'auth_widgets.dart';
 import 'register_screen.dart';
+import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
-/// Sign-in screen. Pops with `true` on success so callers can react.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -64,11 +64,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Sign In'),
+        title: Text(l10n.signIn),
         foregroundColor: palette.textPrimary,
       ),
       body: SafeArea(
