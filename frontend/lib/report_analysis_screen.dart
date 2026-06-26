@@ -60,9 +60,9 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   // ── AQI helpers (consistent with SharedDataService) ──────────────────────────
 
   int _quickAqi(Map<String, dynamic> r) {
-    final pm25 = (r['pm25'] as num?)?.toDouble() ?? 0;
-    final pm10 = (r['pm10'] as num?)?.toDouble() ?? 0;
-    final nox = (r['nox'] as num?)?.toDouble() ?? 0;
+    final pm25 = (r['pm25'] as int?)?.toDouble() ?? 0;
+    final pm10 = (r['pm10'] as int?)?.toDouble() ?? 0;
+    final nox = (r['nox'] as int?)?.toDouble() ?? 0;
     final a = (pm25 / 35 * 100).round().clamp(0, 500);
     final b = (pm10 / 150 * 100).round().clamp(0, 500);
     final c = (nox / 0.1 * 100).round().clamp(0, 500);
@@ -203,11 +203,11 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
     final level = getAqiLevel(avgAqi);
 
     final pollutantAverages = <String, double>{
-      'PM2.5': _avg(_readings.map((r) => (r['pm25'] as num?)?.toDouble() ?? 0)),
-      'PM10': _avg(_readings.map((r) => (r['pm10'] as num?)?.toDouble() ?? 0)),
-      'CO2': _avg(_readings.map((r) => (r['co2'] as num?)?.toDouble() ?? 0)),
-      'NOx': _avg(_readings.map((r) => (r['nox'] as num?)?.toDouble() ?? 0)),
-      'VOC': _avg(_readings.map((r) => (r['voc'] as num?)?.toDouble() ?? 0)),
+      'PM2.5': _avg(_readings.map((r) => (r['pm25'] as int?)?.toDouble() ?? 0)),
+      'PM10': _avg(_readings.map((r) => (r['pm10'] as int?)?.toDouble() ?? 0)),
+      'CO2': _avg(_readings.map((r) => (r['co2'] as int?)?.toDouble() ?? 0)),
+      'NOx': _avg(_readings.map((r) => (r['nox'] as int?)?.toDouble() ?? 0)),
+      'VOC': _avg(_readings.map((r) => (r['voc'] as int?)?.toDouble() ?? 0)),
     };
 
     return [
