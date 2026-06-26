@@ -4,8 +4,8 @@ import 'app_theme.dart';
 import 'auth_service.dart';
 import 'auth_widgets.dart';
 import 'login_screen.dart';
+import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
-/// Account creation screen. Pops with `true` on success so callers can react.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -70,11 +70,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Create Account'),
+        title: Text(l10n.createAccount),
         foregroundColor: palette.textPrimary,
       ),
       body: SafeArea(
