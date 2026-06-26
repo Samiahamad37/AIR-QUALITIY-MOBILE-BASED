@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'air_quality_data.dart';
 import 'app_theme.dart';
 import 'common_widget.dart';
-// import 'api_service.dart';
 import 'shared_data_service.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
