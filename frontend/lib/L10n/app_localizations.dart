@@ -991,6 +991,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get healthRetry;
+
+  /// Sign in button
+  ///
+  /// In en, this message translates to:
+  /// **'Ingia'**
+  String get signIn;
+
+  /// Create account button
+  ///
+  /// In en, this message translates to:
+  /// **'Unda Akaunti'**
+  String get createAccount;
 }
 
 class _AppLocalizationsDelegate
