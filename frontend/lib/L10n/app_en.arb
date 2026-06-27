@@ -297,5 +297,14 @@
   "healthTips": "tips",
   "@healthTips": { "description": "Tips label" },
   "healthRetry": "Retry",
-  "@healthRetry": { "description": "Health screen retry button" }
+  "@healthRetry": { "description": "Health screen retry button" },
+  "signIn": "Ingia",
+  "@signIn": {
+  "description": "Sign in button"
+  },
+
+  "createAccount": "Unda Akaunti",
+"@createAccount": {
+  "description": "Create account button"
+}
 }
