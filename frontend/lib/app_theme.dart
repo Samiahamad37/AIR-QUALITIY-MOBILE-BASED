@@ -169,7 +169,7 @@ class ThemeNotifier extends ChangeNotifier {
       _mode = isDarkPref ? ThemeMode.dark : ThemeMode.light;
       notifyListeners();
     } catch (_) {
-      // ignore errors and keep default
+      
     }
   }
 
