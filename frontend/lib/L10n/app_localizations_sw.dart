@@ -485,4 +485,10 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get healthRetry => 'Jaribu Tena';
+
+  @override
+  String get signIn => 'Ingia';
+
+  @override
+  String get createAccount => 'Unda Akaunti';
 }
