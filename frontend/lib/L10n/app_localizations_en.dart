@@ -489,4 +489,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthRetry => 'Retry';
+
+  @override
+  String get signIn => 'Ingia';
+
+  @override
+  String get createAccount => 'Unda Akaunti';
 }
