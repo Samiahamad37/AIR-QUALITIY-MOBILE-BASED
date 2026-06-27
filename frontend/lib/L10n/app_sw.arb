@@ -303,5 +303,9 @@
   "alertUnhealthy": "Hewa mbaya — kila mtu apunguze shughuli za nje sasa.",
   "@alertUnhealthy": { "description": "Ujumbe wa tahadhari ya mbaya" },
   "alertSensitive": "Makundi nyeti yachukue tahadhari za ziada nje.",
-  "@alertSensitive": { "description": "Ujumbe wa tahadhari ya nyeti" }
+  "@alertSensitive": { "description": "Ujumbe wa tahadhari ya nyeti" },
+  "signIn": "Ingia",
+  "@signIn": { "description": "Kitufe cha kuingia" },
+  "createAccount": "Unda Akaunti",
+  "@createAccount": { "description": "Kitufe cha kuunda akaunti" }
 }
