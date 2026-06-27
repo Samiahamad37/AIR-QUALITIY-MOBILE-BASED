@@ -115,9 +115,9 @@ class SharedDataService extends ChangeNotifier {
     return sorted.take(9).map((r) {
       final ts = DateTime.parse(r['timestamp'].toString()).toLocal();
       final hour = _formatHour(ts);
-      final pm25 = (r['pm25'] as num?)?.toDouble() ?? 0;
-      final pm10 = (r['pm10'] as num?)?.toDouble() ?? 0;
-      final nox = (r['nox'] as num?)?.toDouble() ?? 0;
+      final pm25 = (r['pm25'] as int?)?.toDouble() ?? 0;
+      final pm10 = (r['pm10'] as int?)?.toDouble() ?? 0;
+      final nox = (r['nox'] as int?)?.toDouble() ?? 0;
       final aqi = _quickAqi(pm25, pm10, nox);
       return HourlyAqi(hour: hour, aqi: aqi);
     }).toList();
