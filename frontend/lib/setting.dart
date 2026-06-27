@@ -29,7 +29,7 @@ const _accent = Color(0xFFFF2D55);
 
 class _Local extends ChangeNotifier {
   bool notifications      = true;
-  bool biometric          = true;
+  // bool biometric          = true;
   bool cloudSync          = false;
   String region           = 'TZ';
   String station          = 'Kinondoni';
@@ -38,7 +38,7 @@ class _Local extends ChangeNotifier {
 
   void toggle(String k, bool v) {
     if (k == 'notifications') notifications = v;
-    if (k == 'biometric')     biometric     = v;
+    // if (k == 'biometric')     biometric     = v;
     if (k == 'cloudSync')     cloudSync     = v;
     notifyListeners();
   }
@@ -134,17 +134,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsNotifOn : AppLocalizations.of(ctx)!.settingsNotifOff);
                           },
                         ),
-                        _Toggle(ctx: ctx,
-                          icon: CupertinoIcons.person_crop_circle_fill,
-                          iconBg: const Color(0xFF8E8E93),
-                          label: AppLocalizations.of(ctx)!.settingsBiometric,
-                          sub: AppLocalizations.of(ctx)!.settingsBiometricSub,
-                          value: _local.biometric,
-                          onChanged: (v) {
-                            _local.toggle('biometric', v);
-                            _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsBiometricOn : AppLocalizations.of(ctx)!.settingsBiometricOff);
-                          },
-                        ),
+                        // _Toggle(ctx: ctx,
+                        //   icon: CupertinoIcons.person_crop_circle_fill,
+                        //   iconBg: const Color(0xFF8E8E93),
+                        //   label: AppLocalizations.of(ctx)!.settingsBiometric,
+                        //   sub: AppLocalizations.of(ctx)!.settingsBiometricSub,
+                        //   value: _local.biometric,
+                        //   onChanged: (v) {
+                        //     _local.toggle('biometric', v);
+                        //     _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsBiometricOn : AppLocalizations.of(ctx)!.settingsBiometricOff);
+                        //   },
+                        // ),
                         _Toggle(ctx: ctx,
                           icon: CupertinoIcons.arrow_2_circlepath,
                           iconBg: const Color(0xFF30B0C7),
@@ -168,13 +168,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: CupertinoIcons.globe,
                           iconBg: const Color(0xFF007AFF),
                           label: AppLocalizations.of(ctx)!.settingsLanguage,
-                          // Shows global value
                           value: global.language,
                           onTap: () => _pick(ctx,
                             title: AppLocalizations.of(ctx)!.settingsLanguage,
                             options: const ['English', 'Kiswahili'],
                             current: global.language,
-                            //  Writes to global, MaterialApp rebuilds
                             onSelect: (v) {
                               global.setLanguage(v);
                               _snack(ctx, AppLocalizations.of(ctx)!.settingsLanguageSelected(v));
