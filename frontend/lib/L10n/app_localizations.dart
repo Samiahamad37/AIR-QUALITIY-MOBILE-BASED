@@ -1003,6 +1003,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unda Akaunti'**
   String get createAccount;
+
+  /// Report analysis screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Reports & Analysis'**
+  String get reportTitle;
+
+  /// Average AQI label
+  ///
+  /// In en, this message translates to:
+  /// **'Average AQI'**
+  String get reportAverageAqi;
+
+  /// Peak AQI label
+  ///
+  /// In en, this message translates to:
+  /// **'Peak AQI'**
+  String get reportPeakAqi;
+
+  /// Lowest AQI label
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest AQI'**
+  String get reportLowestAqi;
+
+  /// AQI trend section header
+  ///
+  /// In en, this message translates to:
+  /// **'AQI Trend'**
+  String get reportAqiTrend;
+
+  /// Pollutant averages section header
+  ///
+  /// In en, this message translates to:
+  /// **'Pollutant Averages'**
+  String get reportPollutantAverages;
+
+  /// Analysis section header
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis'**
+  String get reportAnalysis;
+
+  /// No data message for report
+  ///
+  /// In en, this message translates to:
+  /// **'No readings for this period'**
+  String get reportNoData;
+
+  /// Error message for report loading
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load report data'**
+  String get reportLoadError;
+
+  /// Retry button for report
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get reportRetry;
+
+  /// Total readings label
+  ///
+  /// In en, this message translates to:
+  /// **'Total Readings'**
+  String get reportTotalReadings;
+
+  /// Best day label
+  ///
+  /// In en, this message translates to:
+  /// **'Best Day'**
+  String get reportBestDay;
+
+  /// Worst day label
+  ///
+  /// In en, this message translates to:
+  /// **'Worst Day'**
+  String get reportWorstDay;
+
+  /// Time of day analysis section header
+  ///
+  /// In en, this message translates to:
+  /// **'Time of Day Analysis'**
+  String get reportTimeOfDay;
+
+  /// Best hours label
+  ///
+  /// In en, this message translates to:
+  /// **'Best Hours'**
+  String get reportBestHours;
+
+  /// Worst hours label
+  ///
+  /// In en, this message translates to:
+  /// **'Worst Hours'**
+  String get reportWorstHours;
+
+  /// Device comparison section header
+  ///
+  /// In en, this message translates to:
+  /// **'Device Comparison'**
+  String get reportDeviceComparison;
+
+  /// Health impact section header
+  ///
+  /// In en, this message translates to:
+  /// **'Health Impact Summary'**
+  String get reportHealthImpact;
+
+  /// Prediction analysis section header
+  ///
+  /// In en, this message translates to:
+  /// **'Prediction Analysis'**
+  String get reportPrediction;
+
+  /// Model confidence label
+  ///
+  /// In en, this message translates to:
+  /// **'Model Confidence'**
+  String get reportModelConfidence;
+
+  /// Prediction accuracy label
+  ///
+  /// In en, this message translates to:
+  /// **'Prediction Accuracy'**
+  String get reportPredictionAccuracy;
+
+  /// MAE metric label
+  ///
+  /// In en, this message translates to:
+  /// **'MAE'**
+  String get reportMae;
+
+  /// RMSE metric label
+  ///
+  /// In en, this message translates to:
+  /// **'RMSE'**
+  String get reportRmse;
+
+  /// Export section header
+  ///
+  /// In en, this message translates to:
+  /// **'Export Report'**
+  String get reportExport;
+
+  /// Export PDF button
+  ///
+  /// In en, this message translates to:
+  /// **'Export as PDF'**
+  String get reportExportPdf;
+
+  /// Export CSV button
+  ///
+  /// In en, this message translates to:
+  /// **'Export as CSV'**
+  String get reportExportCsv;
+
+  /// Exporting status
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting...'**
+  String get reportExporting;
 }
 
 class _AppLocalizationsDelegate
