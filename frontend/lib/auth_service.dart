@@ -76,11 +76,13 @@ class AuthService extends ChangeNotifier {
     required String username,
     required String email,
     required String password,
+    required String passwordConfirm,
   }) async {
     final res = await _post('/register/', {
       'username': username,
       'email': email,
       'password': password,
+      'password_confirm': passwordConfirm,
     });
     await _persist(res);
   }
