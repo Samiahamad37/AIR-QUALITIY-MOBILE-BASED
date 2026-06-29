@@ -495,4 +495,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createAccount => 'Unda Akaunti';
+
+  @override
+  String get reportTitle => 'Reports & Analysis';
+
+  @override
+  String get reportAverageAqi => 'Average AQI';
+
+  @override
+  String get reportPeakAqi => 'Peak AQI';
+
+  @override
+  String get reportLowestAqi => 'Lowest AQI';
+
+  @override
+  String get reportAqiTrend => 'AQI Trend';
+
+  @override
+  String get reportPollutantAverages => 'Pollutant Averages';
+
+  @override
+  String get reportAnalysis => 'Analysis';
+
+  @override
+  String get reportNoData => 'No readings for this period';
+
+  @override
+  String get reportLoadError => 'Could not load report data';
+
+  @override
+  String get reportRetry => 'Retry';
+
+  @override
+  String get reportTotalReadings => 'Total Readings';
+
+  @override
+  String get reportBestDay => 'Best Day';
+
+  @override
+  String get reportWorstDay => 'Worst Day';
+
+  @override
+  String get reportTimeOfDay => 'Time of Day Analysis';
+
+  @override
+  String get reportBestHours => 'Best Hours';
+
+  @override
+  String get reportWorstHours => 'Worst Hours';
+
+  @override
+  String get reportDeviceComparison => 'Device Comparison';
+
+  @override
+  String get reportHealthImpact => 'Health Impact Summary';
+
+  @override
+  String get reportPrediction => 'Prediction Analysis';
+
+  @override
+  String get reportModelConfidence => 'Model Confidence';
+
+  @override
+  String get reportPredictionAccuracy => 'Prediction Accuracy';
+
+  @override
+  String get reportMae => 'MAE';
+
+  @override
+  String get reportRmse => 'RMSE';
+
+  @override
+  String get reportExport => 'Export Report';
+
+  @override
+  String get reportExportPdf => 'Export as PDF';
+
+  @override
+  String get reportExportCsv => 'Export as CSV';
+
+  @override
+  String get reportExporting => 'Exporting...';
 }
