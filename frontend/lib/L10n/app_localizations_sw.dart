@@ -491,4 +491,85 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get createAccount => 'Unda Akaunti';
+
+  @override
+  String get reportTitle => 'Ripoti na Uchambuzi';
+
+  @override
+  String get reportAverageAqi => 'AQI ya Wastani';
+
+  @override
+  String get reportPeakAqi => 'AQI ya Juu';
+
+  @override
+  String get reportLowestAqi => 'AQI ya Chini';
+
+  @override
+  String get reportAqiTrend => 'Mwenendo wa AQI';
+
+  @override
+  String get reportPollutantAverages => 'Wastani wa Vichafuzi';
+
+  @override
+  String get reportAnalysis => 'Uchambuzi';
+
+  @override
+  String get reportNoData => 'Hakuna masomo kwa kipindi hiki';
+
+  @override
+  String get reportLoadError => 'Haiwezi kupakia data ya ripoti';
+
+  @override
+  String get reportRetry => 'Jaribu Tena';
+
+  @override
+  String get reportTotalReadings => 'Jumla ya Masomo';
+
+  @override
+  String get reportBestDay => 'Siku Bora';
+
+  @override
+  String get reportWorstDay => 'Siku Mbaya';
+
+  @override
+  String get reportTimeOfDay => 'Uchambuzi wa Muda wa Siku';
+
+  @override
+  String get reportBestHours => 'Saa Bora';
+
+  @override
+  String get reportWorstHours => 'Saa Mbaya';
+
+  @override
+  String get reportDeviceComparison => 'Ulinganishi wa Vifaa';
+
+  @override
+  String get reportHealthImpact => 'Muhtasari wa Athari za Afya';
+
+  @override
+  String get reportPrediction => 'Uchambuzi wa Utabiri';
+
+  @override
+  String get reportModelConfidence => 'Uaminifu wa Mfano';
+
+  @override
+  String get reportPredictionAccuracy => 'Usahihi wa Utabiri';
+
+  @override
+  String get reportMae => 'MAE';
+
+  @override
+  String get reportRmse => 'RMSE';
+
+  @override
+  String get reportExport => 'Ripoti ya Uhamisho';
+
+  @override
+  String get reportExportPdf => 'Hamisha kama PDF';
+
+  @override
+  String get reportExportCsv => 'Hamisha kama CSV';
+
+  @override
+  String get reportExporting => 'Inahamisha...';
 }
