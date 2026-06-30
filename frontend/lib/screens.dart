@@ -270,6 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHero(BuildContext context, AirQualityData data, AqiLevel level,
       SharedDataService service) {
     final palette = context.palette;
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
         color: palette.card,
@@ -370,6 +371,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: level.color)),
             ),
             const SizedBox(height: 6),
+            Text(_getLocalizedAdvice(data.aqi, l10n),
+                style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
             Text('Updated ${_timeAgo(data.updatedAt)}',
                 style: TextStyle(fontSize: 11, color: palette.textMuted)),
             const SizedBox(height: 20),
@@ -430,5 +435,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (diff.inSeconds < 60) return 'just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     return '${diff.inHours}h ago';
+  }
+
+  String _getLocalizedAdvice(int aqi, AppLocalizations l10n) {
+    if (aqi <= 50) return l10n.aqiAdviceGood;
+    if (aqi <= 100) return l10n.aqiAdviceModerate;
+    if (aqi <= 150) return l10n.aqiAdviceSensitive;
+    if (aqi <= 200) return l10n.aqiAdviceUnhealthy;
+    if (aqi <= 300) return l10n.aqiAdviceVery;
+    return l10n.aqiAdviceHazardous;
   }
 }
