@@ -108,7 +108,10 @@ class AirQualityApiService {
       if (limit != null) 'limit': '$limit',
     };
     final data = await _get('/device/readings/', params);
-    return List<Map<String, dynamic>>.from(data['readings'] as List);
+    print('API Response data: $data');
+    final readings = List<Map<String, dynamic>>.from(data['readings'] as List);
+    print('Parsed ${readings.length} readings');
+    return readings;
   }
 
   // ── Pollutant History ──────────────────────────────────────────
