@@ -244,7 +244,13 @@ class InfluxDBService:
                   |> pivot(rowKey: ["_time"], columnKey: ["name"], valueColumn: "_value")
                   |> sort(columns: ["_time"], desc: true){limit_clause}
             '''
-            return self._pivot_ttn_readings(self._run_flux(flux_query), device_id=device_id)
+            logger.info(f'Querying TTN readings for device {device_id}, hours: {hours}')
+            logger.info(f'Flux query: {flux_query}')
+            result = self._run_flux(flux_query)
+            logger.info(f'Query result tables: {len(result)}')
+            readings = self._pivot_ttn_readings(result, device_id=device_id)
+            logger.info(f'Parsed {len(readings)} readings for device {device_id}')
+            return readings
         except Exception as e:
             logger.error('Error querying TTN readings for %s: %s', device_id, e)
             return []
