@@ -3,16 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'L10n/app_localizations.dart';
-import 'app_theme.dart';
-import 'screens.dart';
-import 'health_screen.dart';
-import 'map_screen.dart';
-import 'screen2.dart';
-import 'setting.dart';
-import 'shared_data_service.dart';
-import 'auth_service.dart';
+import 'screens/app_theme.dart';
+import 'screens/screen1.dart';
+import 'screens/health_screen.dart';
+import 'screens/map_screen.dart';
+import 'screens/screen2.dart';
+import '/screens/setting.dart';
+import '/services/shared_data_service.dart';
+import '/services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +55,7 @@ class AppState extends InheritedNotifier<AppSettingsModel> {
       context.dependOnInheritedWidgetOfExactType<AppState>()!.notifier!;
 }
 
-// ─── Root widget ──────────────────────────────────────────────────────────────
+// Root widget 
 
 class AirQualityApp extends StatelessWidget {
   const AirQualityApp({super.key});
@@ -122,6 +121,15 @@ class _MainShellState extends State<MainShell> {
     MapScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-detect nearest sensor on app launch
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SharedDataService>().detectNearestSensor();
+    });
+  }
 
   static const _icons = [
     Icons.home_rounded,
