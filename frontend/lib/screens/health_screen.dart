@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import '/Data/air_quality_data.dart';
 import '/services/api_service.dart';
 import '/screens/app_theme.dart';
+import '/services/notification_service.dart';
 import '/widgets/common_widget.dart';
 import '/L10n/app_localizations.dart';
 
-// Group Model 
+// Group Model
 
 class _Group {
   final String id;
@@ -17,15 +18,33 @@ class _Group {
 }
 
 List<_Group> _kGroups(BuildContext context) => [
-  _Group(id: 'general',         label: AppLocalizations.of(context).groupGeneral,      icon: Icons.groups_rounded),
-  _Group(id: 'children',        label: AppLocalizations.of(context).groupChildren,     icon: Icons.child_care_rounded),
-  _Group(id: 'elderly',         label: AppLocalizations.of(context).groupElderly,      icon: Icons.elderly_rounded),
-  _Group(id: 'pregnant',        label: AppLocalizations.of(context).groupPregnant,     icon: Icons.pregnant_woman_rounded),
-  _Group(id: 'asthma',          label: AppLocalizations.of(context).groupAsthma,       icon: Icons.air_rounded),
-  _Group(id: 'outdoor_workers', label: AppLocalizations.of(context).groupOutdoor, icon: Icons.construction_rounded),
-];
+      _Group(
+          id: 'general',
+          label: AppLocalizations.of(context).groupGeneral,
+          icon: Icons.groups_rounded),
+      _Group(
+          id: 'children',
+          label: AppLocalizations.of(context).groupChildren,
+          icon: Icons.child_care_rounded),
+      _Group(
+          id: 'elderly',
+          label: AppLocalizations.of(context).groupElderly,
+          icon: Icons.elderly_rounded),
+      _Group(
+          id: 'pregnant',
+          label: AppLocalizations.of(context).groupPregnant,
+          icon: Icons.pregnant_woman_rounded),
+      _Group(
+          id: 'asthma',
+          label: AppLocalizations.of(context).groupAsthma,
+          icon: Icons.air_rounded),
+      _Group(
+          id: 'outdoor_workers',
+          label: AppLocalizations.of(context).groupOutdoor,
+          icon: Icons.construction_rounded),
+    ];
 
-// Screen 
+// Screen
 
 class HealthScreen extends StatefulWidget {
   const HealthScreen({super.key});
@@ -40,6 +59,7 @@ class _HealthScreenState extends State<HealthScreen> {
   Map<String, List<String>> _recs = {};
   bool _loading = true;
   String? _error;
+  DateTime? _lastUpdated;
   final Set<String> _activeGroups = {'general'};
 
   @override
@@ -54,11 +74,13 @@ class _HealthScreenState extends State<HealthScreen> {
       _error = null;
     });
     try {
-      final aqiData = await api.fetchDeviceAqi(deviceId: defaultDevice);
-      _aqi = (aqiData['aqi'] as num?)?.toInt() ?? 0;
+      final recData = await api.fetchRecommendations(deviceId: defaultDevice);
+      _aqi = (recData['aqi'] as num?)?.toInt() ?? 0;
       _level = getAqiLevel(_aqi);
       _buildRecs();
+      _lastUpdated = DateTime.now();
       setState(() => _loading = false);
+      await notificationService.maybeNotifyAqiAlert(_aqi);
     } on ApiException catch (e) {
       setState(() {
         _error = 'Server error ${e.statusCode}: ${e.message}';
@@ -83,49 +105,160 @@ class _HealthScreenState extends State<HealthScreen> {
   List<String> _getRecsForGroup(String groupId, int aqi) {
     if (aqi <= 50) {
       return {
-        'general':         ['Air quality is satisfactory.', 'Enjoy outdoor activities freely.', 'Open windows for fresh air.'],
-        'children':        ['Safe for outdoor play.', 'No restrictions needed.'],
-        'elderly':         ['Safe for outdoor walks.', 'Normal activities recommended.'],
-        'pregnant':        ['Safe for light outdoor activity.', 'Fresh air is beneficial.'],
-        'asthma':          ['Low risk today.', 'Keep rescue inhaler handy as always.'],
-        'outdoor_workers': ['Safe working conditions.', 'Stay hydrated.'],
-      }[groupId] ?? ['No specific guidance needed.'];
+            'general': [
+              'Air quality is satisfactory.',
+              'Enjoy outdoor activities freely.',
+              'Open windows for fresh air.'
+            ],
+            'children': ['Safe for outdoor play.', 'No restrictions needed.'],
+            'elderly': [
+              'Safe for outdoor walks.',
+              'Normal activities recommended.'
+            ],
+            'pregnant': [
+              'Safe for light outdoor activity.',
+              'Fresh air is beneficial.'
+            ],
+            'asthma': [
+              'Low risk today.',
+              'Keep rescue inhaler handy as always.'
+            ],
+            'outdoor_workers': ['Safe working conditions.', 'Stay hydrated.'],
+          }[groupId] ??
+          ['No specific guidance needed.'];
     } else if (aqi <= 100) {
       return {
-        'general':         ['Air quality is acceptable.', 'Unusually sensitive people should limit prolonged outdoor exertion.'],
-        'children':        ['Outdoor play is generally safe.', 'Watch for any unusual symptoms.'],
-        'elderly':         ['Light outdoor activity is fine.', 'Avoid prolonged strenuous exercise.'],
-        'pregnant':        ['Light walks are safe.', 'Avoid heavy outdoor exertion.'],
-        'asthma':          ['Monitor symptoms closely.', 'Limit prolonged outdoor exertion.', 'Keep inhaler accessible.'],
-        'outdoor_workers': ['Take regular breaks indoors.', 'Stay hydrated throughout the day.'],
-      }[groupId] ?? ['Limit prolonged outdoor activity.'];
+            'general': [
+              'Air quality is acceptable.',
+              'Unusually sensitive people should limit prolonged outdoor exertion.'
+            ],
+            'children': [
+              'Outdoor play is generally safe.',
+              'Watch for any unusual symptoms.'
+            ],
+            'elderly': [
+              'Light outdoor activity is fine.',
+              'Avoid prolonged strenuous exercise.'
+            ],
+            'pregnant': [
+              'Light walks are safe.',
+              'Avoid heavy outdoor exertion.'
+            ],
+            'asthma': [
+              'Monitor symptoms closely.',
+              'Limit prolonged outdoor exertion.',
+              'Keep inhaler accessible.'
+            ],
+            'outdoor_workers': [
+              'Take regular breaks indoors.',
+              'Stay hydrated throughout the day.'
+            ],
+          }[groupId] ??
+          ['Limit prolonged outdoor activity.'];
     } else if (aqi <= 150) {
       return {
-        'general':         ['Sensitive groups should reduce outdoor activity.', 'Others can continue normal activities.'],
-        'children':        ['Reduce prolonged outdoor exertion.', 'Avoid outdoor sports.', 'Keep outdoor time short.'],
-        'elderly':         ['Limit outdoor activity.', 'Stay indoors during peak hours.', 'Monitor for breathing difficulty.'],
-        'pregnant':        ['Reduce outdoor activity.', 'Avoid areas with heavy traffic.', 'Consult doctor if concerned.'],
-        'asthma':          ['Avoid outdoor exertion.', 'Use air purifier indoors.', 'Have rescue medication ready.', 'Seek medical help if symptoms worsen.'],
-        'outdoor_workers': ['Wear N95 mask.', 'Increase rest breaks.', 'Move heavy tasks indoors if possible.'],
-      }[groupId] ?? ['Sensitive groups should take precautions.'];
+            'general': [
+              'Sensitive groups should reduce outdoor activity.',
+              'Others can continue normal activities.'
+            ],
+            'children': [
+              'Reduce prolonged outdoor exertion.',
+              'Avoid outdoor sports.',
+              'Keep outdoor time short.'
+            ],
+            'elderly': [
+              'Limit outdoor activity.',
+              'Stay indoors during peak hours.',
+              'Monitor for breathing difficulty.'
+            ],
+            'pregnant': [
+              'Reduce outdoor activity.',
+              'Avoid areas with heavy traffic.',
+              'Consult doctor if concerned.'
+            ],
+            'asthma': [
+              'Avoid outdoor exertion.',
+              'Use air purifier indoors.',
+              'Have rescue medication ready.',
+              'Seek medical help if symptoms worsen.'
+            ],
+            'outdoor_workers': [
+              'Wear N95 mask.',
+              'Increase rest breaks.',
+              'Move heavy tasks indoors if possible.'
+            ],
+          }[groupId] ??
+          ['Sensitive groups should take precautions.'];
     } else if (aqi <= 200) {
       return {
-        'general':         ['Everyone should reduce prolonged outdoor exertion.', 'Take more breaks during outdoor activities.', 'Wear a mask outdoors.'],
-        'children':        ['Avoid all outdoor exertion.', 'Cancel outdoor sports.', 'Keep windows closed.'],
-        'elderly':         ['Stay indoors.', 'Run air purifier.', 'Avoid all strenuous activity.'],
-        'pregnant':        ['Stay indoors as much as possible.', 'Use air purifier.', 'Contact doctor if experiencing symptoms.'],
-        'asthma':          ['Stay indoors.', 'Use air purifier on high.', 'Avoid all outdoor activity.', 'Have emergency contacts ready.'],
-        'outdoor_workers': ['Wear N95/KN95 mask at all times.', 'Request to work indoors.', 'Limit outdoor exposure to minimum.'],
-      }[groupId] ?? ['Reduce outdoor activity significantly.'];
+            'general': [
+              'Everyone should reduce prolonged outdoor exertion.',
+              'Take more breaks during outdoor activities.',
+              'Wear a mask outdoors.'
+            ],
+            'children': [
+              'Avoid all outdoor exertion.',
+              'Cancel outdoor sports.',
+              'Keep windows closed.'
+            ],
+            'elderly': [
+              'Stay indoors.',
+              'Run air purifier.',
+              'Avoid all strenuous activity.'
+            ],
+            'pregnant': [
+              'Stay indoors as much as possible.',
+              'Use air purifier.',
+              'Contact doctor if experiencing symptoms.'
+            ],
+            'asthma': [
+              'Stay indoors.',
+              'Use air purifier on high.',
+              'Avoid all outdoor activity.',
+              'Have emergency contacts ready.'
+            ],
+            'outdoor_workers': [
+              'Wear N95/KN95 mask at all times.',
+              'Request to work indoors.',
+              'Limit outdoor exposure to minimum.'
+            ],
+          }[groupId] ??
+          ['Reduce outdoor activity significantly.'];
     } else {
       return {
-        'general':         ['Avoid all outdoor activity.', 'Stay indoors with windows closed.', 'Use air purifier if available.'],
-        'children':        ['Do not go outside.', 'Keep all windows and doors closed.', 'Use HEPA air purifier.'],
-        'elderly':         ['Emergency conditions.', 'Stay indoors immediately.', 'Seek medical help if experiencing symptoms.'],
-        'pregnant':        ['Stay indoors immediately.', 'Call doctor if experiencing any symptoms.', 'Use air purifier.'],
-        'asthma':          ['Do not go outside under any circumstances.', 'Use air purifier on maximum.', 'Have emergency medications ready.', 'Call doctor proactively.'],
-        'outdoor_workers': ['Stop all outdoor work immediately.', 'Evacuate to indoor shelter.', 'Seek medical attention if symptomatic.'],
-      }[groupId] ?? ['Emergency conditions. Stay indoors immediately.'];
+            'general': [
+              'Avoid all outdoor activity.',
+              'Stay indoors with windows closed.',
+              'Use air purifier if available.'
+            ],
+            'children': [
+              'Do not go outside.',
+              'Keep all windows and doors closed.',
+              'Use HEPA air purifier.'
+            ],
+            'elderly': [
+              'Emergency conditions.',
+              'Stay indoors immediately.',
+              'Seek medical help if experiencing symptoms.'
+            ],
+            'pregnant': [
+              'Stay indoors immediately.',
+              'Call doctor if experiencing any symptoms.',
+              'Use air purifier.'
+            ],
+            'asthma': [
+              'Do not go outside under any circumstances.',
+              'Use air purifier on maximum.',
+              'Have emergency medications ready.',
+              'Call doctor proactively.'
+            ],
+            'outdoor_workers': [
+              'Stop all outdoor work immediately.',
+              'Evacuate to indoor shelter.',
+              'Seek medical attention if symptomatic.'
+            ],
+          }[groupId] ??
+          ['Emergency conditions. Stay indoors immediately.'];
     }
   }
 
@@ -149,35 +282,37 @@ class _HealthScreenState extends State<HealthScreen> {
 
   Widget _buildLoading(BuildContext context) => Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: const Center(child: CircularProgressIndicator(color: AppColors.good)),
+        body: const Center(
+            child: CircularProgressIndicator(color: AppColors.good)),
       );
 
   Widget _buildError(BuildContext context) {
     final palette = context.palette;
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.cloud_off_rounded, size: 48, color: palette.textMuted),
-              const SizedBox(height: 16),
-              Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: palette.textSecondary, height: 1.5)),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh_rounded),
-                label: Text(l10n.healthRetry),
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.good, foregroundColor: Colors.black),
-              ),
-            ]),
-          ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.cloud_off_rounded, size: 48, color: palette.textMuted),
+            const SizedBox(height: 16),
+            Text(_error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: palette.textSecondary, height: 1.5)),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(l10n.healthRetry),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.good,
+                  foregroundColor: Colors.black),
+            ),
+          ]),
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildContent(BuildContext context) {
@@ -189,10 +324,9 @@ class _HealthScreenState extends State<HealthScreen> {
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: CustomScrollView(slivers: [
-
           SliverToBoxAdapter(child: _buildHeader(context, level)),
 
-          // Alert banner (shows when AQI > 100) 
+          // Alert banner (shows when AQI > 100)
           if (_aqi > 100)
             SliverToBoxAdapter(
               child: Padding(
@@ -201,31 +335,38 @@ class _HealthScreenState extends State<HealthScreen> {
               ),
             ),
 
-          // Group selector 
-          SliverToBoxAdapter(child: SectionHeader(title: AppLocalizations.of(context).healthSelectGroup)),
+          // Group selector
+          SliverToBoxAdapter(
+              child: SectionHeader(
+                  title: AppLocalizations.of(context).healthSelectGroup)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _kGroups(context).map((g) => _GroupChip(
-                  group: g,
-                  isActive: _activeGroups.contains(g.id),
-                  level: level,
-                  onTap: () => _toggleGroup(g.id),
-                )).toList(),
+                children: _kGroups(context)
+                    .map((g) => _GroupChip(
+                          group: g,
+                          isActive: _activeGroups.contains(g.id),
+                          level: level,
+                          onTap: () => _toggleGroup(g.id),
+                        ))
+                    .toList(),
               ),
             ),
           ),
 
-          // Recommendation cards 
-          SliverToBoxAdapter(child: SectionHeader(title: AppLocalizations.of(context).healthGuidance)),
+          // Recommendation cards
+          SliverToBoxAdapter(
+              child: SectionHeader(
+                  title: AppLocalizations.of(context).healthGuidance)),
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (_, i) {
                 final groupId = _activeGroups.elementAt(i);
-                final group = _kGroups(context).firstWhere((g) => g.id == groupId);
+                final group =
+                    _kGroups(context).firstWhere((g) => g.id == groupId);
                 final recs = _recs[groupId] ?? [];
                 return Padding(
                   padding: EdgeInsets.fromLTRB(
@@ -243,8 +384,10 @@ class _HealthScreenState extends State<HealthScreen> {
             ),
           ),
 
-          // Tips footer 
-          SliverToBoxAdapter(child: SectionHeader(title: AppLocalizations.of(context).healthGeneralTips)),
+          // Tips footer
+          SliverToBoxAdapter(
+              child: SectionHeader(
+                  title: AppLocalizations.of(context).healthGeneralTips)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -270,16 +413,33 @@ class _HealthScreenState extends State<HealthScreen> {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(AppLocalizations.of(context).healthTitle,
-                  style: TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w800, color: palette.textPrimary)),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(AppLocalizations.of(context).healthTitle,
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: palette.textPrimary)),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Text('Data: airquality-ai.tlms.live',
+                      style: TextStyle(
+                          fontSize: 11, color: palette.textSecondary)),
+                  const SizedBox(width: 8),
+                  if (_lastUpdated != null)
+                    Text(
+                        'Updated: ${_lastUpdated!.toLocal().toString().split(".").first}',
+                        style: TextStyle(
+                            fontSize: 11, color: palette.textSecondary)),
+                ])
+              ]),
               GestureDetector(
                 onTap: _load,
                 child: Container(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: palette.cardLight,
                     shape: BoxShape.circle,
@@ -290,9 +450,7 @@ class _HealthScreenState extends State<HealthScreen> {
                 ),
               ),
             ]),
-
             const SizedBox(height: 20),
-
             Row(children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(AppLocalizations.of(context).healthCurrentAqi,
@@ -319,7 +477,8 @@ class _HealthScreenState extends State<HealthScreen> {
                 ]),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
                     color: level.color.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(99),
@@ -332,14 +491,14 @@ class _HealthScreenState extends State<HealthScreen> {
                           color: level.color)),
                 ),
               ]),
-
               const Spacer(),
-
               SizedBox(
-                width: 110, height: 110,
+                width: 110,
+                height: 110,
                 child: Stack(alignment: Alignment.center, children: [
                   SizedBox(
-                    width: 110, height: 110,
+                    width: 110,
+                    height: 110,
                     child: CircularProgressIndicator(
                       value: (_aqi / 500).clamp(0.0, 1.0),
                       strokeWidth: 10,
@@ -355,14 +514,13 @@ class _HealthScreenState extends State<HealthScreen> {
                             fontWeight: FontWeight.w800,
                             color: level.color)),
                     Text(AppLocalizations.of(context).healthOfMax,
-                        style: TextStyle(fontSize: 9, color: palette.textMuted)),
+                        style:
+                            TextStyle(fontSize: 9, color: palette.textMuted)),
                   ]),
                 ]),
               ),
             ]),
-
             const SizedBox(height: 14),
-
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -372,7 +530,8 @@ class _HealthScreenState extends State<HealthScreen> {
                 border: Border.all(color: level.color.withOpacity(0.2)),
               ),
               child: Row(children: [
-                Icon(Icons.info_outline_rounded, size: 16, color: level.textColor),
+                Icon(Icons.info_outline_rounded,
+                    size: 16, color: level.textColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(level.advice,
@@ -388,7 +547,7 @@ class _HealthScreenState extends State<HealthScreen> {
   }
 }
 
-// Alert Banner 
+// Alert Banner
 
 class _AlertBanner extends StatelessWidget {
   final int aqi;
@@ -429,7 +588,7 @@ class _AlertBanner extends StatelessWidget {
   }
 }
 
-//  Group Chip 
+//  Group Chip
 
 class _GroupChip extends StatelessWidget {
   final _Group group;
@@ -482,7 +641,7 @@ class _GroupChip extends StatelessWidget {
   }
 }
 
-//  Recommendation Card 
+//  Recommendation Card
 
 class _RecCard extends StatefulWidget {
   final _Group group;
@@ -503,7 +662,8 @@ class _RecCard extends StatefulWidget {
   State<_RecCard> createState() => _RecCardState();
 }
 
-class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin {
+class _RecCardState extends State<_RecCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<Offset> _slide;
   late Animation<double> _fade;
@@ -539,8 +699,8 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border.withOpacity(0.5)),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
               decoration: BoxDecoration(
@@ -552,7 +712,8 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
               ),
               child: Row(children: [
                 Container(
-                  width: 40, height: 40,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: widget.level.color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(10),
@@ -574,7 +735,8 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
                         Text('AQI ${widget.aqi} · ${widget.level.shortName}',
                             style: TextStyle(
                                 fontSize: 11,
-                                color: widget.level.textColor.withOpacity(0.7))),
+                                color:
+                                    widget.level.textColor.withOpacity(0.7))),
                       ]),
                 ),
                 Container(
@@ -584,7 +746,8 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
                     color: widget.level.color.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text('${widget.recommendations.length} ${AppLocalizations.of(context).healthTips}',
+                  child: Text(
+                      '${widget.recommendations.length} ${AppLocalizations.of(context).healthTips}',
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -592,7 +755,6 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
                 ),
               ]),
             ),
-
             if (widget.recommendations.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -612,7 +774,8 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
                           children: [
                             Container(
                               margin: const EdgeInsets.only(top: 2),
-                              width: 20, height: 20,
+                              width: 20,
+                              height: 20,
                               decoration: BoxDecoration(
                                 color: widget.level.color.withOpacity(0.12),
                                 shape: BoxShape.circle,
@@ -645,7 +808,7 @@ class _RecCardState extends State<_RecCard> with SingleTickerProviderStateMixin 
   }
 }
 
-// Tips Grid 
+// Tips Grid
 
 class _TipsGrid extends StatelessWidget {
   final AqiLevel level;
@@ -654,12 +817,16 @@ class _TipsGrid extends StatelessWidget {
   List<(IconData, String, String)> _tips(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return [
-      (Icons.masks_rounded,          l10n.tipMaskTitle,        l10n.tipMaskDesc),
-      (Icons.wind_power_rounded,     l10n.tipPurifierTitle,    l10n.tipPurifierDesc),
-      (Icons.window_rounded,         l10n.tipWindowsTitle,   l10n.tipWindowsDesc),
-      (Icons.local_drink_rounded,    l10n.tipHydrateTitle,   l10n.tipHydrateDesc),
-      (Icons.directions_run_rounded, l10n.tipExerciseTitle, l10n.tipExerciseDesc),
-      (Icons.monitor_heart_rounded,  l10n.tipMonitorTitle,  l10n.tipMonitorDesc),
+      (Icons.masks_rounded, l10n.tipMaskTitle, l10n.tipMaskDesc),
+      (Icons.wind_power_rounded, l10n.tipPurifierTitle, l10n.tipPurifierDesc),
+      (Icons.window_rounded, l10n.tipWindowsTitle, l10n.tipWindowsDesc),
+      (Icons.local_drink_rounded, l10n.tipHydrateTitle, l10n.tipHydrateDesc),
+      (
+        Icons.directions_run_rounded,
+        l10n.tipExerciseTitle,
+        l10n.tipExerciseDesc
+      ),
+      (Icons.monitor_heart_rounded, l10n.tipMonitorTitle, l10n.tipMonitorDesc),
     ];
   }
 
@@ -704,7 +871,8 @@ class _TipCard extends StatefulWidget {
   State<_TipCard> createState() => _TipCardState();
 }
 
-class _TipCardState extends State<_TipCard> with SingleTickerProviderStateMixin {
+class _TipCardState extends State<_TipCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scale;
 
@@ -738,7 +906,8 @@ class _TipCardState extends State<_TipCard> with SingleTickerProviderStateMixin 
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
-            width: 34, height: 34,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: widget.level.color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(9),
@@ -754,9 +923,7 @@ class _TipCardState extends State<_TipCard> with SingleTickerProviderStateMixin 
           const SizedBox(height: 3),
           Text(widget.desc,
               style: const TextStyle(
-                  fontSize: 10,
-                  color: AppColors.textSecondary,
-                  height: 1.4),
+                  fontSize: 10, color: AppColors.textSecondary, height: 1.4),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
         ]),
