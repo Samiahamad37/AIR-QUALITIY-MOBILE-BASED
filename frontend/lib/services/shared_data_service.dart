@@ -116,13 +116,19 @@ class SharedDataService extends ChangeNotifier {
     _connectionState = 'searching';
     notifyListeners();
 
+    Future<void> fallbackToDefault() async {
+      _selectedDevice = 'lands-building';
+      await loadData();
+      _connectionState = 'connected';
+      _error = null;
+      notifyListeners();
+    }
+
     try {
       // Check location permission
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _connectionState = 'no_sensor';
-        _error = 'Location services are disabled';
-        notifyListeners();
+        await fallbackToDefault();
         return;
       }
 
@@ -130,36 +136,42 @@ class SharedDataService extends ChangeNotifier {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _connectionState = 'no_sensor';
-          _error = 'Location permissions are denied';
-          notifyListeners();
+          await fallbackToDefault();
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _connectionState = 'no_sensor';
-        _error = 'Location permissions are permanently denied';
-        notifyListeners();
+        await fallbackToDefault();
         return;
       }
 
-      // Get current position
+      // Get current position quickly instead of waiting for high-accuracy GPS.
       _connectionState = 'locating';
       notifyListeners();
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low,
+          timeLimit: const Duration(seconds: 4),
+        );
+      } catch (_) {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position == null) {
+        await fallbackToDefault();
+        return;
+      }
 
       // Fetch nearest sensor from API
       _connectionState = 'detecting';
       notifyListeners();
 
-      final result = await api.fetchNearestSensor(
-        position.latitude,
-        position.longitude,
-      );
+      final result = await api
+          .fetchNearestSensor(position.latitude, position.longitude)
+          .timeout(const Duration(seconds: 4));
 
       if (result['nearest'] != null) {
         final nearest = result['nearest'] as Map<String, dynamic>;
@@ -178,14 +190,10 @@ class SharedDataService extends ChangeNotifier {
         _connectionState = 'connected';
         notifyListeners();
       } else {
-        _connectionState = 'no_sensor';
-        _error = 'No nearby sensors found';
-        notifyListeners();
+        await fallbackToDefault();
       }
     } catch (e) {
-      _connectionState = 'error';
-      _error = e.toString();
-      notifyListeners();
+      await fallbackToDefault();
     }
   }
 
