@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -21,17 +23,15 @@ class ForecastScreen extends StatefulWidget {
 
 class _ForecastScreenState extends State<ForecastScreen> {
   String _selectedPollutant = 'co2';
-  int _selectedHours = 24;
+  int _selectedHours = 6;
 
   // Real data from API
   List<Map<String, dynamic>> _pollutantHistory = [];
-
-  // Mock forecast (replace with real API when ML is ready)
   List<Map<String, dynamic>> _forecast = [];
   List<Map<String, dynamic>> _dailyForecast = [];
 
   final List<String> _pollutants = ['co2', 'nox', 'voc', 'pm25', 'pm10'];
-  final List<int> _hourOptions = [24, 48, 168];
+  final List<int> _hourOptions = [6];
 
   @override
   void initState() {
@@ -44,58 +44,110 @@ class _ForecastScreenState extends State<ForecastScreen> {
   Future<void> _loadPollutantData() async {
     final service = context.read<SharedDataService>();
     try {
-      final history = await api.fetchPollutantHistory(
-        deviceId: service.selectedDevice,
-        pollutant: _selectedPollutant,
-        hours: _selectedHours,
+      final results = await Future.wait([
+        api.fetchPollutantHistory(
+          deviceId: service.selectedDevice,
+          pollutant: _selectedPollutant,
+          hours: _selectedHours,
+        ),
+        api.fetchPredictions(hours: _selectedHours, hoursAhead: _selectedHours),
+      ]);
+
+      final history = results[0] as List<Map<String, dynamic>>;
+      final predictionResponse = results[1] as Map<String, dynamic>;
+      final hourlyForecast = _buildHourlyForecastFromApi(
+        predictionResponse,
+        service.selectedDevice,
       );
+      final dailyForecast = _buildDailyForecastFromHourly(hourlyForecast);
 
       setState(() {
         _pollutantHistory = history;
-        _forecast = _getMockHourlyForecast();
-        _dailyForecast = _getMockDailyForecast();
+        _forecast = hourlyForecast;
+        _dailyForecast = dailyForecast;
       });
     } catch (e) {
       // Error handled by main UI
     }
   }
 
-  // ── Mock data (replace with API call when ML is ready) ──────────────────────
+  List<Map<String, dynamic>> _buildHourlyForecastFromApi(
+    Map<String, dynamic> data,
+    String deviceId,
+  ) {
+    final forecast6h = data['forecast_6h'];
+    if (forecast6h is List) {
+      return forecast6h.asMap().entries.map((entry) {
+        final ts = DateTime.now().toLocal().add(Duration(hours: entry.key + 1));
+        return {
+          'timestamp': ts.toIso8601String(),
+          'predicted_aqi': entry.value,
+          'confidence': 0.0,
+        };
+      }).toList();
+    }
 
-  List<Map<String, dynamic>> _getMockHourlyForecast() {
-    final now = DateTime.now();
-    final baseAqi = 25;
-    return List.generate(24, (i) {
-      final variation = (i % 6 < 3) ? i * 1.5 : (6 - i % 6) * 1.5;
-      final aqi = (baseAqi + variation).round().clamp(0, 500);
+    final devices =
+        List<Map<String, dynamic>>.from(data['devices'] as List? ?? []);
+    final device = devices.firstWhere(
+      (d) => d['device_id'] == deviceId,
+      orElse: () => devices.isNotEmpty ? devices[0] : {},
+    );
+    final predictions = List<Map<String, dynamic>>.from(
+      device['predictions'] as List? ?? [],
+    );
+
+    return predictions.map((entry) {
       return {
-        'timestamp': now.add(Duration(hours: i)).toIso8601String(),
-        'predicted_aqi': aqi,
-        'confidence': (0.95 - i * 0.015).clamp(0.5, 1.0),
+        'timestamp': entry['timestamp'],
+        'predicted_aqi': entry['value'],
+        'confidence': entry['confidence'] ?? 0.0,
       };
-    });
+    }).toList();
   }
 
-  List<Map<String, dynamic>> _getMockDailyForecast() {
-    final now = DateTime.now();
-    final aqiValues = [35, 32, 28, 35, 30, 27, 22];
-    return List.generate(7, (i) {
-      final aqi = aqiValues[i];
-      final level = getAqiLevel(aqi);
+  List<Map<String, dynamic>> _buildDailyForecastFromHourly(
+    List<Map<String, dynamic>> hourlyForecast,
+  ) {
+    if (hourlyForecast.isEmpty) return [];
+
+    final now = DateTime.now().toLocal();
+    final grouped = <DateTime, List<Map<String, dynamic>>>{};
+
+    for (final item in hourlyForecast) {
+      final ts = DateTime.parse(item['timestamp'].toString()).toLocal();
+      final date = DateTime(ts.year, ts.month, ts.day);
+      grouped.putIfAbsent(date, () => []).add(item);
+    }
+
+    final daily = grouped.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    return daily.take(7).map((entry) {
+      final values = entry.value
+          .map((item) => (item['predicted_aqi'] as num?)?.toInt() ?? 0)
+          .toList();
+      final minAqi = values.reduce(min);
+      final maxAqi = values.reduce(max);
+      final avgAqi = (values.reduce((a, b) => a + b) / values.length).round();
+      final level = getAqiLevel(avgAqi);
+      final isToday = entry.key == DateTime(now.year, now.month, now.day);
+      final dayName = isToday
+          ? 'Today'
+          : entry.key == DateTime(now.year, now.month, now.day + 1)
+              ? 'Tomorrow'
+              : DateFormat('EEE').format(entry.key);
+
       return {
-        'date': now.add(Duration(days: i)).toIso8601String(),
-        'day_name': i == 0
-            ? 'Today'
-            : i == 1
-                ? 'Tomorrow'
-                : DateFormat('EEE').format(now.add(Duration(days: i))),
-        'predicted_aqi': aqi,
-        'aqi_min': (aqi - 5).clamp(0, 500),
-        'aqi_max': (aqi + 8).clamp(0, 500),
+        'date': entry.key.toIso8601String(),
+        'day_name': dayName,
+        'predicted_aqi': avgAqi,
+        'aqi_min': minAqi,
+        'aqi_max': maxAqi,
         'condition': level.shortName,
-        'is_today': i == 0,
+        'is_today': isToday,
       };
-    });
+    }).toList();
   }
 
   @override
@@ -126,17 +178,21 @@ class _ForecastScreenState extends State<ForecastScreen> {
                             if (service.devices.length > 1)
                               SliverToBoxAdapter(
                                 child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 12, 16, 0),
                                   child: DropdownButtonFormField<String>(
                                     value: service.selectedDevice,
                                     dropdownColor: palette.card,
-                                    style: TextStyle(color: palette.textPrimary),
+                                    style:
+                                        TextStyle(color: palette.textPrimary),
                                     decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context).homeLocation,
+                                      labelText: AppLocalizations.of(context)
+                                          .homeLocation,
                                       labelStyle: TextStyle(
                                           color: palette.textSecondary),
                                       border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10)),
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
                                         borderSide:
@@ -150,250 +206,168 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                               value: d,
                                               child: Text(d,
                                                   style: TextStyle(
-                                                      color: palette.textPrimary)),
+                                                      color:
+                                                          palette.textPrimary)),
                                             ))
                                         .toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    service.setSelectedDevice(val);
-                                    _loadPollutantData();
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-
-                        // ── ML Notice Banner ─────────────────────────────
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1D4ED8).withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: const Color(0xFF3B82F6)
-                                        .withOpacity(0.4)),
-                              ),
-                              child: Row(children: [
-                                const Icon(Icons.science_rounded,
-                                    color: Color(0xFF60A5FA), size: 18),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    AppLocalizations.of(context).forecastMlNotice,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF93C5FD),
-                                        height: 1.4),
-                                  ),
-                                ),
-                              ]),
-                            ),
-                          ),
-                        ),
-
-                        // ── 24h Hourly Forecast ──────────────────────────
-                        SliverToBoxAdapter(
-                          child: SectionHeader(title: AppLocalizations.of(context).forecastNext24Hours),
-                        ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            child: GlassCard(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                              child: Column(children: [
-                                SizedBox(
-                                  height: 160,
-                                  child: _buildHourlyChart(),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    _chartLegend(context, AppColors.good, AppLocalizations.of(context).aqiGood),
-                                    _chartLegend(
-                                        context, AppColors.moderate, AppLocalizations.of(context).aqiModerate),
-                                    _chartLegend(context, AppColors.sensitiveGroups,
-                                        AppLocalizations.of(context).aqiSensitive),
-                                    _chartLegend(
-                                        context, AppColors.unhealthy, AppLocalizations.of(context).aqiUnhealthy),
-                                  ],
-                                ),
-                              ]),
-                            ),
-                          ),
-                        ),
-
-                        // ── 7-Day Forecast ───────────────────────────────
-                        SliverToBoxAdapter(
-                          child: SectionHeader(title: AppLocalizations.of(context).forecast7Day),
-                        ),
-                        SliverToBoxAdapter(
-                          child: SizedBox(
-                            height: 130,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16),
-                              itemCount: _dailyForecast.length,
-                              itemBuilder: (_, i) =>
-                                  _DayCard(data: _dailyForecast[i]),
-                            ),
-                          ),
-                        ),
-
-                        // ── Historical Trends ────────────────────────────
-                        SliverToBoxAdapter(
-                          child: SectionHeader(title: AppLocalizations.of(context).forecastHistoricalTrends),
-                        ),
-
-                        // Pollutant selector
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: _pollutants.map((p) {
-                                  final isSelected = p == _selectedPollutant;
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setState(
-                                          () => _selectedPollutant = p);
-                                      _loadPollutantData();
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        service.setSelectedDevice(val);
+                                        _loadPollutantData();
+                                      }
                                     },
-                                    child: AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 200),
-                                      margin: const EdgeInsets.only(right: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? AppColors.good.withOpacity(0.15)
-                                            : palette.card,
-                                        borderRadius:
-                                            BorderRadius.circular(99),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? AppColors.good
-                                              : palette.border
-                                                  .withOpacity(0.5),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        p.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: isSelected
-                                              ? AppColors.good
-                                              : palette.textSecondary,
-                                        ),
-                                      ),
+                                  ),
+                                ),
+                              ),
+
+                            // ── 6-Hour Forecast ─────────────────────────────
+                            SliverToBoxAdapter(
+                              child: SectionHeader(title: '6-Hour Forecast'),
+                            ),
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: GlassCard(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                                  child: Column(children: [
+                                    SizedBox(
+                                      height: 160,
+                                      child: _buildHourlyChart(),
                                     ),
-                                  );
-                                }).toList(),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        _chartLegend(
+                                            context,
+                                            AppColors.good,
+                                            AppLocalizations.of(context)
+                                                .aqiGood),
+                                        _chartLegend(
+                                            context,
+                                            AppColors.moderate,
+                                            AppLocalizations.of(context)
+                                                .aqiModerate),
+                                        _chartLegend(
+                                            context,
+                                            AppColors.sensitiveGroups,
+                                            AppLocalizations.of(context)
+                                                .aqiSensitive),
+                                        _chartLegend(
+                                            context,
+                                            AppColors.unhealthy,
+                                            AppLocalizations.of(context)
+                                                .aqiUnhealthy),
+                                      ],
+                                    ),
+                                  ]),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
 
-                        const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                        // Hours selector
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: _hourOptions.map((h) {
-                                final isSelected = h == _selectedHours;
-                                final label = h == 24
-                                    ? '24h'
-                                    : h == 48
-                                        ? '48h'
-                                        : '7d';
-                                return GestureDetector(
-                                  onTap: () {
-                                    setState(() => _selectedHours = h);
-                                    _loadPollutantData();
-                                  },
-                                  child: AnimatedContainer(
-                                    duration:
-                                        const Duration(milliseconds: 200),
-                                    margin: const EdgeInsets.only(right: 8),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? AppColors.good.withOpacity(0.15)
-                                          : palette.card,
-                                      borderRadius:
-                                          BorderRadius.circular(99),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? AppColors.good
-                                            : palette.border
-                                                .withOpacity(0.5),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      label,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isSelected
-                                            ? AppColors.good
-                                            : palette.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
+                            // ── Historical Trends ────────────────────────────
+                            SliverToBoxAdapter(
+                              child: SectionHeader(
+                                  title: AppLocalizations.of(context)
+                                      .forecastHistoricalTrends),
                             ),
-                          ),
-                        ),
 
-                        const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                        // Line chart
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            child: GlassCard(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 16, 8, 12),
-                              child: _pollutantHistory.isEmpty
-                                  ? SizedBox(
-                                      height: 180,
-                                      child: Center(
-                                        child: Text(AppLocalizations.of(context).forecastNoData,
+                            // Pollutant selector
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: _pollutants.map((p) {
+                                      final isSelected =
+                                          p == _selectedPollutant;
+                                      return GestureDetector(
+                                        onTap: () {
+                                          setState(
+                                              () => _selectedPollutant = p);
+                                          _loadPollutantData();
+                                        },
+                                        child: AnimatedContainer(
+                                          duration:
+                                              const Duration(milliseconds: 200),
+                                          margin:
+                                              const EdgeInsets.only(right: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? AppColors.good
+                                                    .withOpacity(0.15)
+                                                : palette.card,
+                                            borderRadius:
+                                                BorderRadius.circular(99),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? AppColors.good
+                                                  : palette.border
+                                                      .withOpacity(0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            p.toUpperCase(),
                                             style: TextStyle(
-                                                color:
-                                                    palette.textSecondary)),
-                                      ),
-                                    )
-                                  : SizedBox(
-                                      height: 180,
-                                      child: _buildHistoryChart(),
-                                    ),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected
+                                                  ? AppColors.good
+                                                  : palette.textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
 
-                        const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                      ],
-                    ),
-                  ),
-            ),
+                            const SliverToBoxAdapter(
+                                child: SizedBox(height: 12)),
+
+                            // Line chart
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: GlassCard(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 16, 8, 12),
+                                  child: _pollutantHistory.isEmpty
+                                      ? SizedBox(
+                                          height: 180,
+                                          child: Center(
+                                            child: Text(
+                                                AppLocalizations.of(context)
+                                                    .forecastNoData,
+                                                style: TextStyle(
+                                                    color:
+                                                        palette.textSecondary)),
+                                          ),
+                                        )
+                                      : SizedBox(
+                                          height: 180,
+                                          child: _buildHistoryChart(),
+                                        ),
+                                ),
+                              ),
+                            ),
+
+                            const SliverToBoxAdapter(
+                                child: SizedBox(height: 100)),
+                          ],
+                        ),
+                      ),
+          ),
         );
       },
     );
@@ -425,14 +399,14 @@ class _ForecastScreenState extends State<ForecastScreen> {
                 const SizedBox(height: 4),
                 Text(
                   service.selectedDevice,
-                  style: TextStyle(
-                      fontSize: 13, color: palette.textSecondary),
+                  style: TextStyle(fontSize: 13, color: palette.textSecondary),
                 ),
               ]),
               GestureDetector(
                 onTap: _loadPollutantData,
                 child: Container(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: palette.cardLight,
                     shape: BoxShape.circle,
@@ -474,8 +448,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
               interval: 50,
               getTitlesWidget: (val, _) => Text(
                 val.toInt().toString(),
-                style: const TextStyle(
-                    fontSize: 9, color: AppColors.textMuted),
+                style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
               ),
             ),
           ),
@@ -486,20 +459,20 @@ class _ForecastScreenState extends State<ForecastScreen> {
               getTitlesWidget: (val, _) {
                 final i = val.toInt();
                 if (i >= _forecast.length) return const SizedBox();
-                final ts = DateTime.parse(
-                    _forecast[i]['timestamp'].toString()).toLocal();
+                final ts = DateTime.parse(_forecast[i]['timestamp'].toString())
+                    .toLocal();
                 return Text(
                   DateFormat('ha').format(ts).toLowerCase(),
-                  style: const TextStyle(
-                      fontSize: 9, color: AppColors.textMuted),
+                  style:
+                      const TextStyle(fontSize: 9, color: AppColors.textMuted),
                 );
               },
             ),
           ),
-          rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
         lineBarsData: [
@@ -548,8 +521,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
               reservedSize: 40,
               getTitlesWidget: (val, _) => Text(
                 val.toStringAsFixed(1),
-                style: const TextStyle(
-                    fontSize: 9, color: AppColors.textMuted),
+                style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
               ),
             ),
           ),
@@ -560,20 +532,21 @@ class _ForecastScreenState extends State<ForecastScreen> {
               getTitlesWidget: (val, _) {
                 final i = val.toInt();
                 if (i >= _pollutantHistory.length) return const SizedBox();
-                final ts = DateTime.parse(
-                    _pollutantHistory[i]['timestamp'].toString()).toLocal();
+                final ts =
+                    DateTime.parse(_pollutantHistory[i]['timestamp'].toString())
+                        .toLocal();
                 return Text(
                   DateFormat('ha').format(ts).toLowerCase(),
-                  style: const TextStyle(
-                      fontSize: 9, color: AppColors.textMuted),
+                  style:
+                      const TextStyle(fontSize: 9, color: AppColors.textMuted),
                 );
               },
             ),
           ),
-          rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
         lineBarsData: [
@@ -601,8 +574,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.cloud_off_rounded,
-              color: palette.textMuted, size: 48),
+          Icon(Icons.cloud_off_rounded, color: palette.textMuted, size: 48),
           const SizedBox(height: 12),
           Text(service.error ?? 'An error occurred',
               style: TextStyle(color: palette.textSecondary),
@@ -619,12 +591,12 @@ class _ForecastScreenState extends State<ForecastScreen> {
   Widget _chartLegend(BuildContext context, Color color, String label) {
     return Row(children: [
       Container(
-          width: 8, height: 8,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
       const SizedBox(width: 4),
       Text(label,
-          style: TextStyle(
-              fontSize: 9, color: context.palette.textSecondary)),
+          style: TextStyle(fontSize: 9, color: context.palette.textSecondary)),
     ]);
   }
 }
@@ -647,9 +619,7 @@ class _DayCard extends StatelessWidget {
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isToday
-            ? level.color.withOpacity(0.15)
-            : palette.card,
+        color: isToday ? level.color.withOpacity(0.15) : palette.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isToday
@@ -676,15 +646,13 @@ class _DayCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(data['condition'].toString(),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 9, color: palette.textSecondary),
+              style: TextStyle(fontSize: 9, color: palette.textSecondary),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
           const SizedBox(height: 6),
           Text(
             '${data['aqi_min']}-${data['aqi_max']}',
-            style: TextStyle(
-                fontSize: 9, color: palette.textMuted),
+            style: TextStyle(fontSize: 9, color: palette.textMuted),
           ),
         ],
       ),
