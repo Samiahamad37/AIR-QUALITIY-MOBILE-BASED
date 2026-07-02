@@ -1,6 +1,8 @@
 """
 Tests for API endpoints
 """
+from unittest.mock import patch
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
@@ -48,7 +50,8 @@ class AirQualityAPITestCase(TestCase):
         """Test latest air quality endpoint."""
         response = self.client.get('/api/air-quality/latest/')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('data', response.data)
+        self.assertIn('device_id', response.data)
+        self.assertIn('pollutants', response.data)
 
     def test_air_quality_history(self):
         """Test air quality history endpoint."""
@@ -79,3 +82,55 @@ class AirQualityAPITestCase(TestCase):
         response = self.client.get('/api/air-quality/alerts/')
         self.assertEqual(response.status_code, 200)
         self.assertIn('alerts', response.data)
+
+    @patch('airquality_api.api.views.InfluxDBService')
+    def test_predict_all_endpoint(self, mock_service_cls):
+        """Test the predict-all endpoint."""
+        mock_service = mock_service_cls.return_value
+        mock_service.query_latest_reading.return_value = {
+            'timestamp': timezone.now(),
+            'co2': 450,
+            'nox': 55,
+            'pm25': 18,
+            'pm10': 22,
+        }
+        mock_service.query_aqi_history.return_value = [
+            {'timestamp': timezone.now() - timedelta(hours=1), 'aqi': 60},
+            {'timestamp': timezone.now() - timedelta(hours=2), 'aqi': 58},
+        ]
+
+        response = self.client.get('/api/predict/all')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('devices', response.data)
+
+    @patch('airquality_api.api.views.InfluxDBService')
+    def test_recommend_endpoint(self, mock_service_cls):
+        """Test the recommendation endpoint."""
+        mock_service = mock_service_cls.return_value
+        mock_service.query_latest_reading.return_value = {
+            'timestamp': timezone.now(),
+            'co2': 450,
+            'nox': 55,
+            'pm25': 18,
+            'pm10': 22,
+        }
+
+        response = self.client.get('/api/recommend/?device_id=lands-building')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('recommendations', response.data)
+
+    @patch('airquality_api.api.views.InfluxDBService')
+    def test_history_sensor_endpoint(self, mock_service_cls):
+        """Test the sensor history endpoint."""
+        mock_service = mock_service_cls.return_value
+        mock_service.query_recent_readings.return_value = [
+            {'timestamp': timezone.now(), 'co2': 400, 'nox': 50},
+            {'timestamp': timezone.now() - timedelta(hours=1), 'co2': 390, 'nox': 48},
+        ]
+
+        response = self.client.get('/api/history/sensor?device_id=lands-building&hours=24')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('readings', response.data)
