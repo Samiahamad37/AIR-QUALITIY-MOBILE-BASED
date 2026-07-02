@@ -7,10 +7,11 @@ import 'package:http/http.dart' as http;
 // Real device       → your machine's local IP e.g. 192.168.1.x:8000
 
 const String _baseUrl = 'http://localhost:8000/api/air-quality';
-const Duration _timeout = Duration(seconds: 30);
+const String _apiRootUrl = 'https://airquality-ai.tlms.live/api';
+const Duration _timeout = Duration(seconds: 8);
 
 const List<String> allowedDevices = ['lands-building', 'planing-building'];
-const String defaultDevice = 'planing-building';
+const String defaultDevice = 'lands-building';
 
 // ─── Exception ────────────────────────────────────────────────────────────────
 
@@ -25,17 +26,18 @@ class ApiException implements Exception {
 
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
-Future<dynamic> _get(String path, [Map<String, String>? params]) async {
-  final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: params);
+Future<dynamic> _get(String path,
+    [Map<String, String>? params, bool useRoot = false]) async {
+  final root = useRoot ? _apiRootUrl : _baseUrl;
+  final uri = Uri.parse('$root$path').replace(queryParameters: params);
   print('>>> Requesting: $uri');
-  
+
   try {
     final res = await http
-        .get(uri, headers: {'Accept': 'application/json'})
-        .timeout(_timeout);
+        .get(uri, headers: {'Accept': 'application/json'}).timeout(_timeout);
 
     print('>>> Response status: ${res.statusCode}');
-    
+
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return jsonDecode(res.body);
     }
@@ -46,7 +48,8 @@ Future<dynamic> _get(String path, [Map<String, String>? params]) async {
     } catch (_) {
       body = {'error': res.reasonPhrase ?? 'Unknown error'};
     }
-    throw ApiException(res.statusCode, body['detail'] ?? body['error'] ?? 'Unknown error');
+    throw ApiException(
+        res.statusCode, body['detail'] ?? body['error'] ?? 'Unknown error');
   } catch (e) {
     print('>>> Request failed: $e');
     rethrow;
@@ -113,17 +116,68 @@ class AirQualityApiService {
     print('Parsed ${readings.length} readings');
     return readings;
   }
+  // ── Predictions ───────────────────────────────────────────────────────────────
 
+  /// GET /api/predict/all/?hours=<n>&hours_ahead=<n>
+  /// Returns AQI predictions and current values for all supported devices.
+  Future<Map<String, dynamic>> fetchPredictions({
+    int hours = 24,
+    int hoursAhead = 12,
+  }) async {
+    final data = await _get(
+        '/predict/all/',
+        {
+          'hours': '$hours',
+          'hours_ahead': '$hoursAhead',
+        },
+        true);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  // ── Recommendations ───────────────────────────────────────────────────────────
+
+  /// GET /api/recommend/?device_id=<id>
+  /// Returns health guidance for the selected device.
+  Future<Map<String, dynamic>> fetchRecommendations({
+    String deviceId = defaultDevice,
+  }) async {
+    final data = await _get(
+        '/recommend/',
+        {
+          'device_id': deviceId,
+        },
+        true);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  // ── Sensor History ──────────────────────────────────────────────────────────
+
+  /// GET /api/history/sensor/?device_id=<id>&hours=<n>&limit=<n>
+  /// Returns recent raw sensor readings for a device.
+  Future<Map<String, dynamic>> fetchSensorHistory({
+    String deviceId = defaultDevice,
+    int hours = 24,
+    int? limit,
+  }) async {
+    final params = <String, String>{
+      'device_id': deviceId,
+      'hours': '$hours',
+      if (limit != null) 'limit': '$limit',
+    };
+    final data = await _get('/history/sensor/', params, true);
+    return Map<String, dynamic>.from(data as Map);
+  }
   // ── Nearest Sensor ──────────────────────────────────────────────
 
   /// GET /api/sensors/nearest/?lat=<lat>&lng=<lng>
   /// Find nearest sensor based on user's location.
-  Future<Map<String, dynamic>> fetchNearestSensor(double lat, double lng) async {
+  Future<Map<String, dynamic>> fetchNearestSensor(
+      double lat, double lng) async {
     final params = <String, String>{
       'lat': '$lat',
       'lng': '$lng',
     };
-    final data = await _get('/sensors/nearest/', params);
+    final data = await _get('/sensors/nearest/', params, true);
     return data;
   }
 
