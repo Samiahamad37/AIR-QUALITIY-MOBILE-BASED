@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +11,7 @@ import 'screens/screen2.dart';
 import '/screens/setting.dart';
 import '/services/shared_data_service.dart';
 import '/services/auth_service.dart';
+import '/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +19,8 @@ void main() async {
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
   await authService.loadSession();
+  await notificationService.initialize();
+  await notificationService.loadSettings();
   runApp(const AirQualityApp());
 }
 
@@ -34,7 +36,7 @@ class AppSettingsModel extends ChangeNotifier {
   void setDarkMode(bool value) {
     if (_darkMode == value) return;
     _darkMode = value;
-    notifyListeners();          // triggers MaterialApp rebuild below
+    notifyListeners(); // triggers MaterialApp rebuild below
   }
 
   void setLanguage(String value) {
@@ -55,7 +57,7 @@ class AppState extends InheritedNotifier<AppSettingsModel> {
       context.dependOnInheritedWidgetOfExactType<AppState>()!.notifier!;
 }
 
-// Root widget 
+// Root widget
 
 class AirQualityApp extends StatelessWidget {
   const AirQualityApp({super.key});
@@ -70,34 +72,38 @@ class AirQualityApp extends StatelessWidget {
             value: sharedDataService,
           ),
           ChangeNotifierProvider<AuthService>.value(value: authService),
+          ChangeNotifierProvider<NotificationService>.value(
+            value: notificationService,
+          ),
         ],
         child: AnimatedBuilder(
-        // ✅ This rebuild is what makes theme/language actually apply
-        animation: appSettings,
-        builder: (context, _) {
-          return MaterialApp(
-            title: 'AirQuality',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            themeMode: appSettings.darkMode
-                ? ThemeMode.dark
-                : ThemeMode.light,
-            locale: _localeFor(appSettings.language),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const MainShell(),
-          );
-        },
-      ),
+          // ✅ This rebuild is what makes theme/language actually apply
+          animation: appSettings,
+          builder: (context, _) {
+            return MaterialApp(
+              title: 'AirQuality',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode:
+                  appSettings.darkMode ? ThemeMode.dark : ThemeMode.light,
+              locale: _localeFor(appSettings.language),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: const MainShell(),
+            );
+          },
+        ),
       ),
     );
   }
 
   Locale _localeFor(String language) {
     switch (language) {
-      case 'Kiswahili': return const Locale('sw');
-      default:          return const Locale('en');
+      case 'Kiswahili':
+        return const Locale('sw');
+      default:
+        return const Locale('en');
     }
   }
 }
@@ -140,7 +146,13 @@ class _MainShellState extends State<MainShell> {
   ];
 
   static const _labelsEn = ['Home', 'Forecast', 'Health', 'Map', 'Settings'];
-  static const _labelsSw = ['Nyumbani', 'Utabiri', 'Afya', 'Ramani', 'Mipangilio'];
+  static const _labelsSw = [
+    'Nyumbani',
+    'Utabiri',
+    'Afya',
+    'Ramani',
+    'Mipangilio'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -151,50 +163,57 @@ class _MainShellState extends State<MainShell> {
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB);
 
     // Reads the SAME global state Settings writes to
-    final labels = AppState.of(context).language == 'Kiswahili'
-        ? _labelsSw : _labelsEn;
+    final labels =
+        AppState.of(context).language == 'Kiswahili' ? _labelsSw : _labelsEn;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(color: bgColor,
+        decoration: BoxDecoration(
+            color: bgColor,
             border: Border(top: BorderSide(color: border, width: 0.5))),
-        child: SafeArea(top: false, child: SizedBox(
-          height: 60,
-          child: Row(children: List.generate(5, (i) {
-            final isActive = i == _currentIndex;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _currentIndex = i),
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? active.withOpacity(0.12) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Icon(_icons[i], size: 22,
-                          color: isActive ? active : inactive),
+        child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 60,
+              child: Row(
+                  children: List.generate(5, (i) {
+                final isActive = i == _currentIndex;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _currentIndex = i),
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? active.withOpacity(0.12)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Icon(_icons[i],
+                              size: 22, color: isActive ? active : inactive),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(labels[i],
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isActive ? active : inactive,
+                              fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w400,
+                            )),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(labels[i], style: TextStyle(
-                      fontSize: 10,
-                      color: isActive ? active : inactive,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                    )),
-                  ],
-                ),
-              ),
-            );
-          })),
-        )),
+                  ),
+                );
+              })),
+            )),
       ),
     );
   }
