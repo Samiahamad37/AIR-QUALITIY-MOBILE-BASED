@@ -7,6 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import Sensor, SensorReading, AQIPrediction, Alert
 from .serializers import SensorSerializer, SensorReadingSerializer, AQIPredictionSerializer, AlertSerializer
+import math
 
 
 class SensorViewSet(viewsets.ReadOnlyModelViewSet):
@@ -39,6 +40,58 @@ class SensorViewSet(viewsets.ReadOnlyModelViewSet):
         readings = sensor.readings.filter(timestamp__gte=start_time).order_by('-timestamp')
         serializer = SensorReadingSerializer(readings, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def nearest(self, request):
+        """Find nearest sensor based on user's location."""
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        
+        if not lat or not lng:
+            return Response(
+                {'detail': 'lat and lng parameters are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user_lat = float(lat)
+            user_lng = float(lng)
+        except ValueError:
+            return Response(
+                {'detail': 'Invalid latitude or longitude values.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        sensors = self.get_queryset()
+        
+        def calculate_distance(sensor_lat, sensor_lng):
+            """Calculate distance using Haversine formula."""
+            R = 6371  # Earth's radius in km
+            lat1, lon1 = math.radians(user_lat), math.radians(user_lng)
+            lat2, lon2 = math.radians(sensor_lat), math.radians(sensor_lng)
+            
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            
+            return R * c
+        
+        sensors_with_distance = []
+        for sensor in sensors:
+            distance = calculate_distance(sensor.latitude, sensor.longitude)
+            sensors_with_distance.append({
+                'sensor': SensorSerializer(sensor).data,
+                'distance_km': round(distance, 2)
+            })
+        
+        sensors_with_distance.sort(key=lambda x: x['distance_km'])
+        
+        return Response({
+            'sensors': sensors_with_distance,
+            'nearest': sensors_with_distance[0] if sensors_with_distance else None
+        })
 
 
 class SensorReadingViewSet(viewsets.ReadOnlyModelViewSet):
