@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Reusable style for the thick outlines -->
+    <style>
+      .border-line {
+        stroke: #123552;
+        stroke-width: 24;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .back-cloud {
+        fill: #3b82b6;
+      }
+      .front-cloud {
+        fill: #29a3dd;
+      }
+    </style>
+  </defs>
+
+  <!-- Back Cloud -->
+  <path class="back-cloud border-line" d="
+    M 210,340 
+    A 65,65 0 0,1 160,230
+    A 75,75 0 0,1 270,140
+    A 95,95 0 0,1 420,210
+    A 65,65 0 0,1 390,340 
+    Z" />
+
+  <!-- Front Cloud -->
+  <path class="front-cloud border-line" d="
+    M 150,410 
+    L 390,410 
+    A 75,75 0 0,0 450,290 
+    A 65,65 0 0,0 370,195 
+    A 70,70 0 0,0 245,230 
+    A 65,65 0 0,0 140,310
+    A 60,60 0 0,0 150,410 
+    Z" />
+
+  <!-- Wind Swirl & Lines -->
+  <g class="border-line" fill="none">
+    <!-- Top shorter wind line -->
+    <path d="M 80,355 L 140,355" />
+    
+    <!-- Main bottom wind line that loops into a swirl -->
+    <path d="M 32,385 L 230,385 C 275,385 285,325 245,305 C 215,290 195,320 215,340 C 225,350 240,345 245,335" />
+  </g>
+</svg>
