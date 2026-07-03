@@ -23,15 +23,16 @@ class ForecastScreen extends StatefulWidget {
 
 class _ForecastScreenState extends State<ForecastScreen> {
   String _selectedPollutant = 'co2';
-  int _selectedHours = 6;
+  int _selectedHours = 24;
 
   // Real data from API
   List<Map<String, dynamic>> _pollutantHistory = [];
   List<Map<String, dynamic>> _forecast = [];
   List<Map<String, dynamic>> _dailyForecast = [];
+  Map<String, dynamic>? _predictionData;
 
   final List<String> _pollutants = ['co2', 'nox', 'voc', 'pm25', 'pm10'];
-  final List<int> _hourOptions = [6];
+  final List<int> _hourOptions = [24, 48, 168];
 
   @override
   void initState() {
@@ -50,21 +51,19 @@ class _ForecastScreenState extends State<ForecastScreen> {
           pollutant: _selectedPollutant,
           hours: _selectedHours,
         ),
-        api.fetchPredictions(hours: _selectedHours, hoursAhead: _selectedHours),
+        api.fetchPredictions(),
       ]);
 
       final history = results[0] as List<Map<String, dynamic>>;
       final predictionResponse = results[1] as Map<String, dynamic>;
-      final hourlyForecast = _buildHourlyForecastFromApi(
-        predictionResponse,
-        service.selectedDevice,
-      );
+      final hourlyForecast = _buildHourlyForecastFromApi(predictionResponse);
       final dailyForecast = _buildDailyForecastFromHourly(hourlyForecast);
 
       setState(() {
         _pollutantHistory = history;
         _forecast = hourlyForecast;
         _dailyForecast = dailyForecast;
+        _predictionData = predictionResponse;
       });
     } catch (e) {
       // Error handled by main UI
@@ -73,35 +72,16 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   List<Map<String, dynamic>> _buildHourlyForecastFromApi(
     Map<String, dynamic> data,
-    String deviceId,
   ) {
-    final forecast6h = data['forecast_6h'];
-    if (forecast6h is List) {
-      return forecast6h.asMap().entries.map((entry) {
-        final ts = DateTime.now().toLocal().add(Duration(hours: entry.key + 1));
-        return {
-          'timestamp': ts.toIso8601String(),
-          'predicted_aqi': entry.value,
-          'confidence': 0.0,
-        };
-      }).toList();
-    }
+    final forecast6h = List<dynamic>.from(data['forecast_6h'] as List? ?? []);
+    final timestamp = DateTime.parse(data['timestamp'] as String);
 
-    final devices =
-        List<Map<String, dynamic>>.from(data['devices'] as List? ?? []);
-    final device = devices.firstWhere(
-      (d) => d['device_id'] == deviceId,
-      orElse: () => devices.isNotEmpty ? devices[0] : {},
-    );
-    final predictions = List<Map<String, dynamic>>.from(
-      device['predictions'] as List? ?? [],
-    );
-
-    return predictions.map((entry) {
+    return forecast6h.asMap().entries.map((entry) {
+      final hourOffset = entry.key + 1;
       return {
-        'timestamp': entry['timestamp'],
-        'predicted_aqi': entry['value'],
-        'confidence': entry['confidence'] ?? 0.0,
+        'timestamp': timestamp.add(Duration(hours: hourOffset)).toIso8601String(),
+        'predicted_aqi': entry.value as num,
+        'confidence': data['trend_confidence'] ?? 0.0,
       };
     }).toList();
   }
@@ -220,9 +200,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                 ),
                               ),
 
-                            // ── 6-Hour Forecast ─────────────────────────────
+                            // ── 6h Hourly Forecast ──────────────────────────
                             SliverToBoxAdapter(
-                              child: SectionHeader(title: '6-Hour Forecast'),
+                              child: SectionHeader(
+                                  title: '6-Hour Forecast'),
                             ),
                             SliverToBoxAdapter(
                               child: Padding(
@@ -267,6 +248,121 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                 ),
                               ),
                             ),
+
+                            // ── Current Parameters ─────────────────────────────
+                            if (_predictionData != null)
+                              SliverToBoxAdapter(
+                                child: SectionHeader(title: 'Current Parameters'),
+                              ),
+                            if (_predictionData != null)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 16),
+                                  child: GlassCard(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text('Current AQI',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: palette.textSecondary)),
+                                            Text(
+                                                '${(_predictionData!['current_aqi'] as num).toStringAsFixed(1)}',
+                                                style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: palette.textPrimary)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text('Trend',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: palette.textSecondary)),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  (_predictionData!['trend_direction'] == 'rising')
+                                                      ? Icons.trending_up
+                                                      : Icons.trending_down,
+                                                  size: 16,
+                                                  color: (_predictionData!['trend_direction'] == 'rising')
+                                                      ? AppColors.unhealthy
+                                                      : AppColors.good,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                    '${_predictionData!['trend_direction']}',
+                                                    style: TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: palette.textPrimary)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text('Confidence',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: palette.textSecondary)),
+                                            Text(
+                                                '${(_predictionData!['trend_confidence'] as num).toStringAsFixed(1)}%',
+                                                style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: palette.textPrimary)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Divider(),
+                                        const SizedBox(height: 12),
+                                        Text('Pollutants',
+                                            style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: palette.textPrimary)),
+                                        const SizedBox(height: 12),
+                                        _buildPollutantGrid(_predictionData!['pollutants'] as Map<String, dynamic>?),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            // // ── 6-Day Forecast ───────────────────────────────
+                            // SliverToBoxAdapter(
+                            //   child: SectionHeader(
+                            //       title: AppLocalizations.of(context)
+                            //           .forecast7Day),
+                            // ),
+                            // SliverToBoxAdapter(
+                            //   child: SizedBox(
+                            //     height: 130,
+                            //     child: ListView.builder(
+                            //       scrollDirection: Axis.horizontal,
+                            //       padding: const EdgeInsets.symmetric(
+                            //           horizontal: 16),
+                            //       itemCount: _dailyForecast.length,
+                            //       itemBuilder: (_, i) =>
+                            //           _DayCard(data: _dailyForecast[i]),
+                            //     ),
+                            //   ),
+                            // ),
 
                             // ── Historical Trends ────────────────────────────
                             SliverToBoxAdapter(
@@ -327,6 +423,63 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                       );
                                     }).toList(),
                                   ),
+                                ),
+                              ),
+                            ),
+
+                            const SliverToBoxAdapter(
+                                child: SizedBox(height: 12)),
+
+                            // Hours selector
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  children: _hourOptions.map((h) {
+                                    final isSelected = h == _selectedHours;
+                                    final label = h == 24
+                                        ? '24h'
+                                        : h == 48
+                                            ? '48h'
+                                            : '7d';
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() => _selectedHours = h);
+                                        _loadPollutantData();
+                                      },
+                                      child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        margin: const EdgeInsets.only(right: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? AppColors.good.withOpacity(0.15)
+                                              : palette.card,
+                                          borderRadius:
+                                              BorderRadius.circular(99),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? AppColors.good
+                                                : palette.border
+                                                    .withOpacity(0.5),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          label,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: isSelected
+                                                ? AppColors.good
+                                                : palette.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
                               ),
                             ),
@@ -598,6 +751,74 @@ class _ForecastScreenState extends State<ForecastScreen> {
       Text(label,
           style: TextStyle(fontSize: 9, color: context.palette.textSecondary)),
     ]);
+  }
+
+  Widget _buildPollutantGrid(Map<String, dynamic>? pollutants) {
+    if (pollutants == null) return const SizedBox();
+
+    final pollutantLabels = {
+      'pm25': 'PM2.5',
+      'pm10': 'PM10',
+      'co2': 'CO2',
+      'no2': 'NO2',
+      'voc': 'VOC',
+      'humidity': 'Humidity',
+      'temperature': 'Temperature',
+    };
+
+    final pollutantUnits = {
+      'pm25': 'µg/m³',
+      'pm10': 'µg/m³',
+      'co2': 'PPM',
+      'no2': 'PPM',
+      'voc': 'PPM',
+      'humidity': '%',
+      'temperature': '°C',
+    };
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 2.5,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: pollutants.length,
+      itemBuilder: (context, index) {
+        final key = pollutants.keys.elementAt(index);
+        final value = pollutants[key];
+        final label = pollutantLabels[key] ?? key.toUpperCase();
+        final unit = pollutantUnits[key] ?? '';
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: context.palette.cardLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: context.palette.border.withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: context.palette.textSecondary)),
+              const SizedBox(height: 4),
+              Text(
+                  value is num ? '${value.toStringAsFixed(1)} $unit' : '$value',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: context.palette.textPrimary)),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
