@@ -77,7 +77,7 @@ class AirQualityApp extends StatelessWidget {
           ),
         ],
         child: AnimatedBuilder(
-          // ✅ This rebuild is what makes theme/language actually apply
+            //  This rebuild is what makes theme/language actually apply
           animation: appSettings,
           builder: (context, _) {
             return MaterialApp(
