@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // Android emulator  → 10.0.2.2:8000
@@ -29,7 +30,9 @@ class ApiException implements Exception {
 Future<dynamic> _get(String path,
     [Map<String, String>? params, bool useRoot = false]) async {
   final root = useRoot ? _apiRootUrl : _baseUrl;
-  final uri = Uri.parse('$root$path').replace(queryParameters: params);
+  final uri = (params != null && params.isNotEmpty)
+      ? Uri.parse('$root$path').replace(queryParameters: params)
+      : Uri.parse('$root$path');
   print('>>> Requesting: $uri');
 
   try {
@@ -118,36 +121,65 @@ class AirQualityApiService {
   }
   // ── Predictions ───────────────────────────────────────────────────────────────
 
-  /// GET /api/predict/all/?hours=<n>&hours_ahead=<n>
-  /// Returns AQI predictions and current values for all supported devices.
-  Future<Map<String, dynamic>> fetchPredictions({
-    int hours = 24,
-    int hoursAhead = 12,
-  }) async {
-    final data = await _get(
-        '/predict/all/',
-        {
-          'hours': '$hours',
-          'hours_ahead': '$hoursAhead',
-        },
-        true);
+  /// GET /api/air-quality/predict/all/
+  /// Returns 6-hour air quality forecast from backend (proxies to external API).
+  /// Response: { current_aqi, trend_direction, trend_confidence, forecast_6h, pollutants, timestamp }
+  Future<Map<String, dynamic>> fetchPredictions() async {
+    final data = await _get('/predict/all/', {}, false);
     return Map<String, dynamic>.from(data as Map);
   }
 
   // ── Recommendations ───────────────────────────────────────────────────────────
 
-  /// GET /api/recommend/?device_id=<id>
-  /// Returns health guidance for the selected device.
-  Future<Map<String, dynamic>> fetchRecommendations({
-    String deviceId = defaultDevice,
-  }) async {
-    final data = await _get(
-        '/recommend/',
-        {
-          'device_id': deviceId,
-        },
-        true);
-    return Map<String, dynamic>.from(data as Map);
+  /// GET /api/air-quality/recommend/
+  /// Returns AI-generated health recommendations from backend (proxies to external API).
+  /// Response: { advice, aqi, aqi_category, timestamp }
+  // Future<Map<String, dynamic>> fetchRecommendations() async {
+  //   final data = await _get('/recommend/', {}, false);
+  //   return Map<String, dynamic>.from(data as Map);
+  // }
+
+
+// // ✅ AFTER — calls the AI API directly
+//  Future<Map<String, dynamic>> fetchRecommendations({int? aqi}) async {
+//    const aiUrl = 'https://airquality-ai.tlms.live/api/recommend/';
+//    final uri = Uri.parse(aiUrl).replace(
+//      queryParameters: aqi != null ? {'aqi': '$aqi'} : null,
+//    );
+//    final res = await http.get(uri, headers: {'Accept': 'application/json'})
+//       .timeout(const Duration(seconds: 15));
+//    if (res.statusCode >= 200 && res.statusCode < 300) {
+//      return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+//     }
+//     throw ApiException(res.statusCode, res.reasonPhrase ?? 'Error');
+// }
+  Future<Map<String, dynamic>> fetchRecommendations({int aqi = 0}) async {
+    try {
+      final uri = Uri.parse('https://airquality-ai.tlms.live/api/recommend/')
+          .replace(queryParameters: {'aqi': '$aqi'});
+ 
+      debugPrint('>>> Requesting: $uri');
+ 
+      final res = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 15));
+ 
+      debugPrint('>>> Response status: ${res.statusCode}');
+ 
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map<String, dynamic>) return decoded;
+        // API returned non-map (e.g. HTML) — return empty map gracefully
+        return {};
+      }
+      throw ApiException(res.statusCode, res.reasonPhrase ?? 'Error');
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      debugPrint('>>> Request failed: $e');
+      // Return empty map so Health screen still loads with local recs
+      return {};
+    }
   }
 
   // ── Sensor History ──────────────────────────────────────────────────────────
