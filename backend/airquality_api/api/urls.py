@@ -10,6 +10,8 @@ urlpatterns = [
     path('history/', AirQualityAPIViewSet.as_view({'get': 'device_history'}), name='history'),
     path('device/pollutants/', AirQualityAPIViewSet.as_view({'get': 'device_all_pollutants'}), name='device-all-pollutants'),
     path('device/aqi/', AirQualityAPIViewSet.as_view({'get': 'device_aqi'}), name='device-aqi'),
+    path('predict/all/', AirQualityAPIViewSet.as_view({'get': 'predict_all'}), name='predict-all'),
     path('nearby-sensors/', AirQualityAPIViewSet.as_view({'get': 'nearby_sensors'}), name='nearby-sensors'),
     path('alerts/', AirQualityAPIViewSet.as_view({'get': 'alerts'}), name='alerts'),
+    
 ]
