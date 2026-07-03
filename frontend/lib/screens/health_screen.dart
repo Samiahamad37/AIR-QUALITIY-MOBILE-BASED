@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '/Data/air_quality_data.dart';
 import '/services/api_service.dart';
 import '/screens/app_theme.dart';
 import '/services/notification_service.dart';
 import '/widgets/common_widget.dart';
 import '/L10n/app_localizations.dart';
+import '/services/shared_data_service.dart';
 
 // Group Model
 
@@ -58,9 +60,11 @@ class _HealthScreenState extends State<HealthScreen> {
   AqiLevel? _level;
   Map<String, List<String>> _recs = {};
   bool _loading = true;
+  bool _isExpanded = false;
   String? _error;
   DateTime? _lastUpdated;
   final Set<String> _activeGroups = {'general'};
+  String? _aiAdvice;
 
   @override
   void initState() {
@@ -68,31 +72,75 @@ class _HealthScreenState extends State<HealthScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  // Future<void> _load() async {
+  //   setState(() {
+  //     _loading = true;
+  //     _error = null;
+  //   });
+  //   try {
+  //     final recData = await api.fetchRecommendations();
+  //     _aqi = (recData['aqi'] as num?)?.toInt() ?? 0;
+  //     _level = getAqiLevel(_aqi);
+  //     _aiAdvice = recData['advice'] as String?;
+  //     _buildRecs();
+  //     _lastUpdated = DateTime.now();
+  //     setState(() => _loading = false);
+  //     await notificationService.maybeNotifyAqiAlert(_aqi);
+  //   } on ApiException catch (e) {
+  //     setState(() {
+  //       _error = 'Server error ${e.statusCode}: ${e.message}';
+  //       _loading = false;
+  //     });
+  //   } catch (e) {
+  //     setState(() {
+  //       _error = 'Cannot reach server.\n$e';
+  //       _loading = false;
+  //     });
+  //   }
+  // }
+Future<void> _load() async {
+  setState(() {
+    _loading = true;
+    _error = null;
+  });
+
+  try {
+    // ✅ Get AQI from SharedDataService
+    final service = context.read<SharedDataService>();
+    final currentAqi = service.currentData?.aqi;
+
+    if (currentAqi == null) {
+      throw Exception("AQI not available from SharedDataService");
+    }
+
+    // ✅ Fetch recommendations using AQI
+    final recData = await api.fetchRecommendations(aqi: currentAqi);
+
     setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final recData = await api.fetchRecommendations(deviceId: defaultDevice);
-      _aqi = (recData['aqi'] as num?)?.toInt() ?? 0;
+      _aqi = currentAqi;
       _level = getAqiLevel(_aqi);
+      _aiAdvice = recData['advice'] as String?;
+      _isExpanded = false;
       _buildRecs();
       _lastUpdated = DateTime.now();
-      setState(() => _loading = false);
-      await notificationService.maybeNotifyAqiAlert(_aqi);
-    } on ApiException catch (e) {
-      setState(() {
-        _error = 'Server error ${e.statusCode}: ${e.message}';
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Cannot reach server.\n$e';
-        _loading = false;
-      });
-    }
+      _loading = false;
+    });
+
+    await notificationService.maybeNotifyAqiAlert(_aqi);
+
+  } on ApiException catch (e) {
+    setState(() {
+      _error = 'Server error ${e.statusCode}: ${e.message}';
+      _loading = false;
+    });
+  } catch (e) {
+    setState(() {
+      _error = 'Cannot reach server.\n$e';
+      _loading = false;
+    });
   }
+}
+ 
 
   void _buildRecs() {
     final Map<String, List<String>> recs = {};
@@ -316,7 +364,7 @@ class _HealthScreenState extends State<HealthScreen> {
   }
 
   Widget _buildContent(BuildContext context) {
-    // final palette = context.palette;
+    final palette = context.palette;
     final level = _level!;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -334,6 +382,112 @@ class _HealthScreenState extends State<HealthScreen> {
                 child: _AlertBanner(aqi: _aqi, level: level),
               ),
             ),
+
+          // AI Advice Section
+if (_aiAdvice != null && _aiAdvice!.isNotEmpty)
+  SliverToBoxAdapter(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: GlassCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: level.color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.psychology_alt_rounded,
+                    color: level.color,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "AI Recommendation",
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: palette.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Personalized advice based on current AQI",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const Divider(height: 24),
+
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 250),
+              crossFadeState: _isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: Text(
+                _aiAdvice!,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.7,
+                  color: palette.textSecondary,
+                ),
+              ),
+              secondChild: Text(
+                _aiAdvice!,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.7,
+                  color: palette.textSecondary,
+                ),
+              ),
+            ),
+
+            if (_aiAdvice!.length > 180)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                  icon: Icon(
+                    _isExpanded
+                        ? Icons.expand_less
+                        : Icons.expand_more,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _isExpanded ? "Read less" : "Read more",
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  ),
+
 
           // Group selector
           SliverToBoxAdapter(
