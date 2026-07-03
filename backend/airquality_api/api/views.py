@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from airquality_api.utils.influxdb_service import InfluxDBService
 from airquality_api.utils.aqi_calculator import AQICalculator
 from airquality_api.utils.prediction import PredictionService
+from airquality_api.utils.external_api import ExternalAPIService
 from rest_framework.permissions import AllowAny
 from airquality_api.sensors.models import Sensor
 
@@ -231,57 +232,29 @@ class AirQualityAPIViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def predict_all(self, request):
-        """Return current AQI and future predictions for all supported devices."""
-        hours = int(request.query_params.get('hours', 24))
-        hours_ahead = int(request.query_params.get('hours_ahead', 12))
-        svc = InfluxDBService()
-        try:
-            devices = []
-            for device_id in ALLOWED_DEVICES:
-                reading = svc.query_latest_reading(device_id)
-                history = svc.query_aqi_history(device_id, hours=hours) or []
-                history_points = [(item['timestamp'], item.get('aqi')) for item in history if item.get('aqi') is not None]
-                aqi_payload = self._get_aqi_payload(reading) if reading else {
-                    'aqi': None,
-                    'category': 'unknown',
-                    'color': '#FFFFFF',
-                    'recommendations': AQICalculator.get_recommendations(0),
-                }
-                predictions = PredictionService.predict_aqi(history_points, hours_ahead=hours_ahead)
-                devices.append({
-                    'device_id': device_id,
-                    'timestamp': reading.get('timestamp') if reading else None,
-                    'aqi': aqi_payload['aqi'],
-                    'category': aqi_payload['category'],
-                    'recommendations': aqi_payload['recommendations'],
-                    'predictions': predictions,
-                })
-        finally:
-            svc.close()
-
-        return Response({'devices': devices})
+        """Return 6-hour air quality predictions from external forecast API."""
+        external_data = ExternalAPIService.get_predictions()
+        
+        if external_data is None:
+            return Response(
+                {'detail': 'Unable to fetch predictions from external API.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        
+        return Response(external_data)
 
     @action(detail=False, methods=['get'])
     def recommend(self, request):
-        """Return health guidance for a device based on the latest AQI."""
-        device_id = self._get_device_id(request) or ALLOWED_DEVICES[0]
-        svc = InfluxDBService()
-        try:
-            reading = svc.query_latest_reading(device_id)
-        finally:
-            svc.close()
-
-        if not reading:
-            return Response({'detail': 'No data found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        aqi_payload = self._get_aqi_payload(reading)
-        return Response({
-            'device_id': device_id,
-            'timestamp': reading.get('timestamp'),
-            'aqi': aqi_payload['aqi'],
-            'category': aqi_payload['category'],
-            'recommendations': aqi_payload['recommendations'],
-        })
+        """Return AI-generated health recommendations from external API."""
+        external_data = ExternalAPIService.get_recommendations()
+        
+        if external_data is None:
+            return Response(
+                {'detail': 'Unable to fetch recommendations from external API.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        
+        return Response(external_data)
 
     @action(detail=False, methods=['get'])
     def history_sensor(self, request):
