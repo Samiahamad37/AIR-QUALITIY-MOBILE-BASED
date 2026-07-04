@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // iOS simulator     → 127.0.0.1:8000
 // Real device       → your machine's local IP e.g. 192.168.1.x:8000
 
-const String _authBaseUrl = 'http://localhost:8000/api/users';
+const String _authBaseUrl = 'http://92.5.10.116/api/users';
 const Duration _authTimeout = Duration(seconds: 30);
 
 /// Thrown when an authentication request fails. [message] is user-facing.
