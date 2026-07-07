@@ -51,7 +51,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
           pollutant: _selectedPollutant,
           hours: _selectedHours,
         ),
-        api.fetchPredictions(),
+        api.fetchPredictions(deviceId: service.selectedDevice),
       ]);
 
       final history = results[0] as List<Map<String, dynamic>>;
@@ -66,7 +66,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
         _predictionData = predictionResponse;
       });
     } catch (e) {
-      // Error handled by main UI
+      debugPrint('Failed to load pollutant data: $e');
     }
   }
 
