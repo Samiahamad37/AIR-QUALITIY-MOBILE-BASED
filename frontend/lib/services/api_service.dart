@@ -15,6 +15,13 @@ const Duration _timeout = Duration(seconds: 8);
 const List<String> allowedDevices = ['lands-building', 'planing-building'];
 const String defaultDevice = 'lands-building';
 
+// Device name mapping for API compatibility
+String _mapDeviceName(String deviceId) {
+  if (deviceId == 'lands-building') return 'lands';
+  if (deviceId == 'planing-building') return 'planning';
+  return deviceId;
+}
+
 // ─── Exception ────────────────────────────────────────────────────────────────
 
 class ApiException implements Exception {
@@ -124,10 +131,18 @@ class AirQualityApiService {
 
   /// GET /api/air-quality/predict/all/
   /// Returns 6-hour air quality forecast from backend (proxies to external API).
-  /// Response: { current_aqi, trend_direction, trend_confidence, forecast_6h, pollutants, timestamp }
-  Future<Map<String, dynamic>> fetchPredictions() async {
+  /// Response: { sensors: { <sensor_name>: { current_aqi, trend_direction, trend_confidence, forecast_6h, pollutants, timestamp } } }
+  Future<Map<String, dynamic>> fetchPredictions({String deviceId = defaultDevice}) async {
     final data = await _get('/predict/all/', {}, false);
-    return Map<String, dynamic>.from(data as Map);
+    final sensors = data['sensors'] as Map<String, dynamic>?;
+    final mappedDevice = _mapDeviceName(deviceId);
+    final sensorData = sensors?[mappedDevice] as Map<String, dynamic>?;
+    
+    if (sensorData == null) {
+      throw ApiException(404, 'Sensor data not found for device: $deviceId');
+    }
+    
+    return Map<String, dynamic>.from(sensorData);
   }
 
   // ── Recommendations ───────────────────────────────────────────────────────────
