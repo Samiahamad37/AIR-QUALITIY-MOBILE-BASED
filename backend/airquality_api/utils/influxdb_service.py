@@ -203,6 +203,7 @@ class InfluxDBService:
                     readings.append(row)
                 elif len(row) == 2 and device_id:
                     readings.append(row)
+        readings.sort(key=lambda r: r['timestamp'], reverse=True)
         return readings
 
     def list_devices(self, hours=24 * 7):
@@ -257,7 +258,7 @@ class InfluxDBService:
 
     def query_ttn_latest_reading(self, device_id, hours=24):
         """Most recent TTN uplink for a device."""
-        readings = self.query_ttn_recent_readings(device_id, hours=hours, limit=1)
+        readings = self.query_ttn_recent_readings(device_id, hours=hours, limit=50)
         return readings[0] if readings else None
 
     def query_ttn_metric_history(self, device_id, metric_name, hours=168):

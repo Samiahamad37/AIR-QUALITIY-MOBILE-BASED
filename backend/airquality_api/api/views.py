@@ -7,10 +7,34 @@ from airquality_api.utils.prediction import PredictionService
 from airquality_api.utils.external_api import ExternalAPIService
 from rest_framework.permissions import AllowAny
 from airquality_api.sensors.models import Sensor
+from datetime import timezone
 
 
 ALLOWED_DEVICES = ['lands-building', 'planing-building']
 ALLOWED_POLLUTANTS = ['aqi', 'co2', 'nox', 'voc', 'pm25', 'pm10']
+
+
+def _iso_timestamp(value):
+    if value is None:
+        return None
+    if hasattr(value, 'isoformat'):
+        dt = value
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        text = dt.isoformat()
+        if text.endswith('+00:00'):
+            return text[:-6] + 'Z'
+        return text
+    return str(value)
+
+
+def _serialize_reading(reading):
+    if not reading:
+        return reading
+    out = dict(reading)
+    if 'timestamp' in out:
+        out['timestamp'] = _iso_timestamp(out['timestamp'])
+    return out
 
 
 class AirQualityAPIViewSet(viewsets.ViewSet):
@@ -35,10 +59,21 @@ class AirQualityAPIViewSet(viewsets.ViewSet):
     @staticmethod
     def _get_aqi_payload(reading):
         no2_value = reading.get('no2') if reading.get('no2') is not None else reading.get('nox')
+        # NOx from sensors is often in ppm; EPA NO2 breakpoints use ppb.
+        if no2_value is not None and no2_value < 1:
+            no2_value = no2_value * 1000
+
+        pm25 = reading.get('pm25')
+        if pm25 == 0:
+            pm25 = None
+
         aqi, category = AQICalculator.calculate_overall_aqi(
             no2=no2_value,
-            pm25=reading.get('pm25'),
+            pm25=pm25,
         )
+        if aqi is None:
+            aqi = 0
+            category = 'unknown'
         return {
             'aqi': aqi,
             'category': category,
@@ -73,6 +108,7 @@ class AirQualityAPIViewSet(viewsets.ViewSet):
             )
 
         pollutants = {k: reading[k] for k in ALLOWED_POLLUTANTS if k in reading}
+        reading = _serialize_reading(reading)
         return Response({
             'device_id': device_id,
             'timestamp': reading['timestamp'],
@@ -123,7 +159,7 @@ class AirQualityAPIViewSet(viewsets.ViewSet):
             'device_id': device_id,
             'hours': hours,
             'count': len(readings),
-            'readings': readings,
+            'readings': [_serialize_reading(r) for r in readings],
         })
 
     @action(detail=False, methods=['get'])
@@ -208,6 +244,7 @@ class AirQualityAPIViewSet(viewsets.ViewSet):
             return Response({'detail': 'No data found.'}, status=status.HTTP_404_NOT_FOUND)
 
         aqi_payload = self._get_aqi_payload(reading)
+        reading = _serialize_reading(reading)
 
         return Response({
             'device_id': device_id,
@@ -279,7 +316,7 @@ class AirQualityAPIViewSet(viewsets.ViewSet):
             'device_id': device_id,
             'hours': hours,
             'count': len(readings),
-            'readings': readings,
+            'readings': [_serialize_reading(r) for r in readings],
         })
 
     @action(detail=False, methods=['get'])
