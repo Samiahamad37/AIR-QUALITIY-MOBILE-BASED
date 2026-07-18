@@ -1,13 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/Data/air_quality_data.dart';
+import '/utils/device_labels.dart';
+import '/utils/time_utils.dart';
 import '/services/api_service.dart';
+import '/services/notification_service.dart';
 import '/screens/app_theme.dart';
 
 /// Shared data service that manages device selection and readings for all screens.
 /// All screens subscribe to this service to stay in sync.
 class SharedDataService extends ChangeNotifier {
-  String _selectedDevice = 'lands-building';
+  static const _prefDevice = 'default_sensor_device';
+
+  String _selectedDevice = defaultDevice;
   List<String> _devices = [];
   AirQualityData? _currentData;
   bool _isLoading = true;
@@ -15,7 +21,6 @@ class SharedDataService extends ChangeNotifier {
   DateTime? _lastUpdated;
   String _connectionState = 'disconnected';
 
-  // Getters
   String get selectedDevice => _selectedDevice;
   List<String> get devices => _devices;
   AirQualityData? get currentData => _currentData;
@@ -24,34 +29,52 @@ class SharedDataService extends ChangeNotifier {
   DateTime? get lastUpdated => _lastUpdated;
   String get connectionState => _connectionState;
 
-  /// Fetch device list and AQI data for the selected device.
+  SharedDataService() {
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _selectedDevice = prefs.getString(_prefDevice) ?? defaultDevice;
+      notifyListeners();
+    } catch (_) {}
+  }
+
   Future<void> loadData() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // Fetch devices and current AQI data
-      final [devices, aqiData, readings] = await Future.wait([
+      final results = await Future.wait([
         api.fetchDevices(),
         api.fetchDeviceAqi(deviceId: _selectedDevice),
         api.fetchDeviceReadings(deviceId: _selectedDevice, hours: 24),
       ]);
 
-      _devices = devices as List<String>;
-      final aqiMap = aqiData as Map<String, dynamic>;
-      final readingsList = readings as List<Map<String, dynamic>>;
+      _devices = results[0] as List<String>;
+      final aqiMap = results[1] as Map<String, dynamic>;
+      final readingsList = results[2] as List<Map<String, dynamic>>;
 
-      // Build AirQualityData from API response
       final pollutants = aqiMap['pollutants'] as Map<String, dynamic>? ?? {};
       final environment = aqiMap['environment'] as Map<String, dynamic>? ?? {};
       final hourlyData = _buildHourlyData(readingsList);
 
+      var updatedAt = parseApiTimestamp(aqiMap['timestamp']);
+      if (readingsList.isNotEmpty) {
+        final latestReadingTs =
+            parseApiTimestamp(readingsList.first['timestamp']);
+        if (latestReadingTs.isAfter(updatedAt)) {
+          updatedAt = latestReadingTs;
+        }
+      }
+
       _currentData = AirQualityData(
         aqi: (aqiMap['aqi'] as num?)?.toInt() ?? 0,
         city: 'Dar es Salaam',
-        district: _selectedDevice,
-        updatedAt: DateTime.parse(aqiMap['timestamp']).toLocal(),
+        district: deviceDisplayName(_selectedDevice),
+        updatedAt: updatedAt,
         temperature: (environment['temperature'] as num?)?.toDouble() ?? 0,
         humidity: (environment['humidity'] as num?)?.toDouble() ?? 0,
         windSpeed: 0,
@@ -96,6 +119,10 @@ class SharedDataService extends ChangeNotifier {
       );
       _lastUpdated = DateTime.now();
       _isLoading = false;
+      await notificationService.evaluateAqi(
+        _currentData!.aqi,
+        location: deviceDisplayName(_selectedDevice),
+      );
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
@@ -104,14 +131,14 @@ class SharedDataService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Change the selected device and reload data.
   Future<void> setSelectedDevice(String deviceId) async {
     if (deviceId == _selectedDevice) return;
     _selectedDevice = deviceId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefDevice, deviceId);
     await loadData();
   }
 
-  /// Auto-detect and connect to nearest sensor.
   Future<void> detectNearestSensor() async {
     _connectionState = 'searching';
     notifyListeners();
@@ -125,7 +152,6 @@ class SharedDataService extends ChangeNotifier {
     }
 
     try {
-      // Check location permission
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         await fallbackToDefault();
@@ -146,7 +172,6 @@ class SharedDataService extends ChangeNotifier {
         return;
       }
 
-      // Get current position quickly instead of waiting for high-accuracy GPS.
       _connectionState = 'locating';
       notifyListeners();
 
@@ -165,7 +190,6 @@ class SharedDataService extends ChangeNotifier {
         return;
       }
 
-      // Fetch nearest sensor from API
       _connectionState = 'detecting';
       notifyListeners();
 
@@ -181,7 +205,6 @@ class SharedDataService extends ChangeNotifier {
         _connectionState = 'connecting';
         notifyListeners();
 
-        // Switch to nearest device
         if (sensorId != _selectedDevice) {
           _selectedDevice = sensorId;
           await loadData();
@@ -197,12 +220,11 @@ class SharedDataService extends ChangeNotifier {
     }
   }
 
-  /// Build hourly AQI data from readings.
   List<HourlyAqi> _buildHourlyData(List<Map<String, dynamic>> readings) {
     if (readings.isEmpty) return [];
     final sorted = readings.reversed.toList();
     return sorted.take(9).map((r) {
-      final ts = DateTime.parse(r['timestamp'].toString()).toLocal();
+      final ts = parseApiTimestamp(r['timestamp']);
       final hour = _formatHour(ts);
       final pm25 = (r['pm25'] as num?)?.toDouble() ?? 0;
       final pm10 = (r['pm10'] as num?)?.toDouble() ?? 0;
@@ -212,7 +234,6 @@ class SharedDataService extends ChangeNotifier {
     }).toList();
   }
 
-  /// Format hour for display (e.g., "3pm").
   String _formatHour(DateTime dt) {
     final h = dt.hour;
     final meridiem = h < 12 ? 'am' : 'pm';
@@ -220,7 +241,6 @@ class SharedDataService extends ChangeNotifier {
     return '$hourDisplay$meridiem';
   }
 
-  /// Quick AQI calculation from pollutants.
   int _quickAqi(double pm25, double pm10, double nox) {
     int a = (pm25 / 35 * 100).round().clamp(0, 500);
     int b = (pm10 / 150 * 100).round().clamp(0, 500);
@@ -229,5 +249,4 @@ class SharedDataService extends ChangeNotifier {
   }
 }
 
-// Singleton instance
 final sharedDataService = SharedDataService();
