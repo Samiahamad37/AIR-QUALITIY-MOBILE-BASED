@@ -303,6 +303,21 @@ class AppLocalizationsSw extends AppLocalizations {
   String get settingsAqiThreshold => 'Kiwango cha Tahadhari cha AQI';
 
   @override
+  String get settingsLevelChangeAlerts => 'Arifa za Mabadiliko ya Kiwango';
+
+  @override
+  String get settingsLevelChangeSub =>
+      'Tahadhari wakati kategoria ya ubora wa hewa inabadilika';
+
+  @override
+  String get settingsLevelChangeOn =>
+      'Arifa za mabadiliko ya kiwango zimefungwa';
+
+  @override
+  String get settingsLevelChangeOff =>
+      'Arifa za mabadiliko ya kiwango zimezimwa';
+
+  @override
   String get settingsRefreshInterval => 'Kipindi cha Kusasisha';
 
   @override
