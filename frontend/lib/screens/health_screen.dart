@@ -126,7 +126,10 @@ Future<void> _load() async {
       _loading = false;
     });
 
-    await notificationService.maybeNotifyAqiAlert(_aqi);
+    await notificationService.evaluateAqi(
+      currentAqi,
+      location: service.currentData?.district,
+    );
 
   } on ApiException catch (e) {
     setState(() {
