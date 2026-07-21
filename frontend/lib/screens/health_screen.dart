@@ -6,6 +6,7 @@ import '/services/api_service.dart';
 import '/screens/app_theme.dart';
 import '/services/notification_service.dart';
 import '/widgets/common_widget.dart';
+import '/widgets/ai_advice_panel.dart';
 import '/L10n/app_localizations.dart';
 import '/services/shared_data_service.dart';
 
@@ -56,8 +57,8 @@ class HealthScreen extends StatefulWidget {
 }
 
 class _HealthScreenState extends State<HealthScreen> {
-  bool _isExpanded = false;
   String? _aiAdvice;
+  String? _aiCategory;
   bool _aiLoading = false;
   DateTime? _lastUpdated;
   final Set<String> _activeGroups = {'general'};
@@ -106,6 +107,7 @@ class _HealthScreenState extends State<HealthScreen> {
       if (!mounted) return;
       setState(() {
         _aiAdvice = recData['advice'] as String?;
+        _aiCategory = recData['aqi_category'] as String?;
         _lastUpdated = DateTime.now();
         _aiLoading = false;
       });
@@ -332,8 +334,6 @@ class _HealthScreenState extends State<HealthScreen> {
     required Map<String, List<String>> recs,
     required SharedDataService service,
   }) {
-    final palette = context.palette;
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: context.appOverlayStyle,
       child: Scaffold(
@@ -373,96 +373,10 @@ class _HealthScreenState extends State<HealthScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: GlassCard(
                   padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: level.color.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.psychology_alt_rounded,
-                              color: level.color,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "AI Recommendation",
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: palette.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  "Personalized advice based on current AQI",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: palette.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-                      AnimatedCrossFade(
-                        duration: const Duration(milliseconds: 250),
-                        crossFadeState: _isExpanded
-                            ? CrossFadeState.showSecond
-                            : CrossFadeState.showFirst,
-                        firstChild: Text(
-                          _aiAdvice!,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.7,
-                            color: palette.textSecondary,
-                          ),
-                        ),
-                        secondChild: Text(
-                          _aiAdvice!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.7,
-                            color: palette.textSecondary,
-                          ),
-                        ),
-                      ),
-                      if (_aiAdvice!.length > 180)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _isExpanded = !_isExpanded;
-                              });
-                            },
-                            icon: Icon(
-                              _isExpanded
-                                  ? Icons.expand_less
-                                  : Icons.expand_more,
-                              size: 18,
-                            ),
-                            label: Text(
-                              _isExpanded ? "Read less" : "Read more",
-                            ),
-                          ),
-                        ),
-                    ],
+                  child: AiAdvicePanel(
+                    advice: _aiAdvice!,
+                    accentColor: level.color,
+                    category: _aiCategory,
                   ),
                 ),
               ),
