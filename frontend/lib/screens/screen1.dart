@@ -5,6 +5,8 @@ import '/Data/air_quality_data.dart';
 import '/screens/app_theme.dart';
 import '/widgets/common_widget.dart';
 import '/services/shared_data_service.dart';
+import '/utils/device_labels.dart';
+import '/utils/time_utils.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 const String defaultDevice = 'lands-building';
@@ -17,15 +19,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Load data on first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SharedDataService>().loadData();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -72,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
-        if (service.isLoading) {
+        if (service.isLoading && service.currentData == null) {
           return Scaffold(
             backgroundColor: bg,
             body: const Center(child: CircularProgressIndicator()),
@@ -146,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           items: service.devices
                               .map((d) => DropdownMenuItem(
                                     value: d,
-                                    child: Text(d,
+                                    child: Text(deviceDisplayName(d),
                                         style: TextStyle(
                                             color: palette.textPrimary)),
                                   ))
@@ -354,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Row(
                     children: [
-                      if (service.isLoading)
+                      if (service.isLoading || service.isRefreshing)
                         SizedBox(
                           width: 18,
                           height: 18,
@@ -469,12 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
         color: context.palette.border.withOpacity(0.5));
   }
 
-  String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inSeconds < 60) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    return '${diff.inHours}h ago';
-  }
+  String _timeAgo(DateTime dt) => formatTimeAgo(dt);
 
   String _getLocalizedAdvice(int aqi, AppLocalizations l10n) {
     if (aqi <= 50) return l10n.aqiAdviceGood;
