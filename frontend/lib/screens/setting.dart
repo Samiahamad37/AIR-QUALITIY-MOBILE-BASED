@@ -8,6 +8,9 @@ import '/services/notification_service.dart';
 import '/screens/login_screen.dart';
 import '/screens/register_screen.dart';
 import '/screens/report_analysis_screen.dart';
+import '/services/shared_data_service.dart';
+import '/utils/device_labels.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 // ─── Theme-aware colors — work in both light & dark ────────────────────────────
@@ -38,7 +41,7 @@ class _Local extends ChangeNotifier {
   // bool biometric          = true;
   bool cloudSync = false;
   String region = 'TZ';
-  String station = 'Kinondoni';
+  String station = 'Lands Building';
   String aqiThreshold = '150 — Sensitive';
   String refreshInterval = '5 min';
 
@@ -56,6 +59,27 @@ class _Local extends ChangeNotifier {
     if (k == 'refreshInterval') refreshInterval = v;
     notifyListeners();
   }
+
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    cloudSync = prefs.getBool('cloud_sync') ?? false;
+    region = prefs.getString('settings_region') ?? region;
+    notifyListeners();
+  }
+
+  Future<void> setCloudSync(bool value) async {
+    cloudSync = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('cloud_sync', value);
+    notifyListeners();
+  }
+
+  Future<void> saveRegion(String value) async {
+    region = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('settings_region', value);
+    notifyListeners();
+  }
 }
 
 class SettingsScreen extends StatefulWidget {
@@ -67,6 +91,16 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _local = _Local();
+
+  @override
+  void initState() {
+    super.initState();
+    _local.load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final device = context.read<SharedDataService>().selectedDevice;
+      _local.set('station', deviceDisplayName(device));
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontWeight: FontWeight.w700,
                             color: _textMain(ctx),
                             letterSpacing: -0.5)),
-                    _iconBtn(ctx, CupertinoIcons.search, () {}),
+                    _iconBtn(ctx, CupertinoIcons.search, () => _openSearch(ctx)),
                   ],
                 ),
               ),
@@ -175,8 +209,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           label: AppLocalizations.of(ctx).settingsCloudSync,
                           sub: AppLocalizations.of(ctx).settingsCloudSyncSub,
                           value: _local.cloudSync,
-                          onChanged: (v) {
-                            _local.toggle('cloudSync', v);
+                          onChanged: (v) async {
+                            await _local.setCloudSync(v);
+                            if (v) {
+                              await ctx.read<SharedDataService>().loadData();
+                            }
                             _snack(
                                 ctx,
                                 v
@@ -226,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             options: const ['TZ', 'KE', 'UG', 'RW', 'ZM'],
                             current: _local.region,
                             onSelect: (v) {
-                              _local.set('region', v);
+                              _local.saveRegion(v);
                               _snack(
                                   ctx,
                                   AppLocalizations.of(ctx)
@@ -261,22 +298,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ctx,
                             title:
                                 AppLocalizations.of(ctx).settingsDefaultStation,
-                            options: const [
-                              'Kinondoni',
-                              'Ilala',
-                              'Temeke',
-                              'Ubungo',
-                              'Kigamboni'
-                            ],
+                            options: deviceIdByLabel.keys.toList(),
                             current: _local.station,
-                            onSelect: (v) {
+                            onSelect: (v) async {
                               _local.set('station', v);
+                              final deviceId = deviceIdByLabel[v];
+                              if (deviceId != null) {
+                                await ctx
+                                    .read<SharedDataService>()
+                                    .setSelectedDevice(deviceId);
+                              }
                               _snack(
                                   ctx,
                                   AppLocalizations.of(ctx)
                                       .settingsStationSelected(v));
                             },
                           ),
+                        ),
+                        _Toggle(
+                          ctx: ctx,
+                          icon: CupertinoIcons.chart_bar_alt_fill,
+                          iconBg: const Color(0xFFFB923C),
+                          label: AppLocalizations.of(ctx).settingsLevelChangeAlerts,
+                          sub: AppLocalizations.of(ctx).settingsLevelChangeSub,
+                          value: notifications.notifyOnLevelChange,
+                          onChanged: (v) {
+                            notifications.setNotifyOnLevelChange(v);
+                            _snack(
+                                ctx,
+                                v
+                                    ? AppLocalizations.of(ctx)
+                                        .settingsLevelChangeOn
+                                    : AppLocalizations.of(ctx)
+                                        .settingsLevelChangeOff);
+                          },
                         ),
                         _Nav(
                           ctx: ctx,
@@ -326,7 +381,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               '30 min'
                             ],
                             current: _local.refreshInterval,
-                            onSelect: (v) {
+                            onSelect: (v) async {
                               _local.set('refreshInterval', v);
                               _snack(
                                   ctx,
@@ -355,13 +410,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             icon: CupertinoIcons.shield_fill,
                             iconBg: const Color(0xFF5856D6),
                             label: AppLocalizations.of(ctx).settingsPrivacy,
-                            onTap: () {}),
+                            onTap: () => _privacyDialog(ctx)),
                         _Nav(
                             ctx: ctx,
                             icon: CupertinoIcons.question_circle_fill,
                             iconBg: const Color(0xFF32ADE6),
                             label: AppLocalizations.of(ctx).settingsHelp,
-                            onTap: () {}),
+                            onTap: () => _helpDialog(ctx)),
                         _Nav(
                             ctx: ctx,
                             icon: CupertinoIcons.star_fill,
@@ -400,7 +455,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  void _privacyDialog(BuildContext c) {
+    showDialog(
+      context: c,
+      builder: (_) => AlertDialog(
+        backgroundColor: _card(c),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(AppLocalizations.of(c).settingsPrivacy,
+            style: TextStyle(color: _textMain(c), fontWeight: FontWeight.w700)),
+        content: Text(
+          'AirWatch collects location only to find the nearest sensor. '
+          'Sensor readings are stored on our servers for analysis. '
+          'We do not sell personal data. Account credentials are used '
+          'only for authentication and saved reports.',
+          style: TextStyle(color: _textSub(c), fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(AppLocalizations.of(c).settingsClose,
+                style: const TextStyle(color: _accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _helpDialog(BuildContext c) {
+    showDialog(
+      context: c,
+      builder: (_) => AlertDialog(
+        backgroundColor: _card(c),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(AppLocalizations.of(c).settingsHelp,
+            style: TextStyle(color: _textMain(c), fontWeight: FontWeight.w700)),
+        content: Text(
+          '• Tap a sensor on Home or Map to view full readings\n'
+          '• Use Settings → Default Station to switch Lands Building or Planing Building\n'
+          '• Enable notifications for AQI threshold and level change alerts\n'
+          '• Sign in to access Reports & Analysis\n'
+          '• Pull down on Home to refresh live data',
+          style: TextStyle(color: _textSub(c), fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(AppLocalizations.of(c).settingsClose,
+                style: const TextStyle(color: _accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openSearch(BuildContext c) {
+    final dataService = c.read<SharedDataService>();
+    showModalBottomSheet(
+      context: c,
+      backgroundColor: _card(c),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Quick actions',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _textMain(c))),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded, color: _accent),
+                title: Text('Refresh sensor data',
+                    style: TextStyle(color: _textMain(c))),
+                onTap: () async {
+                  Navigator.pop(c);
+                  await dataService.loadData();
+                  _snack(c, 'Data refreshed');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.bar_chart_rounded, color: _accent),
+                title: Text('Reports & Analysis',
+                    style: TextStyle(color: _textMain(c))),
+                onTap: () {
+                  Navigator.pop(c);
+                  _openReports(c);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _iconBtn(BuildContext c, IconData icon, VoidCallback fn) =>
       GestureDetector(
