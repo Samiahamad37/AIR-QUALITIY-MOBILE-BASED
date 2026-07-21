@@ -2,13 +2,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '/config/api_config.dart';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-// Android emulator  → 10.0.2.2:8000
-// iOS simulator     → 127.0.0.1:8000
-// Real device       → your machine's local IP e.g. 192.168.1.x:8000
+// Uses [usersApiBaseUrl] from api_config.dart (local in debug, production in release).
 
-const String _authBaseUrl = 'http://92.5.10.116/api/users';
 const Duration _authTimeout = Duration(seconds: 30);
 
 /// Thrown when an authentication request fails. [message] is user-facing.
@@ -104,7 +102,7 @@ class AuthService extends ChangeNotifier {
 
   Future<Map<String, dynamic>> _post(
       String path, Map<String, dynamic> body) async {
-    final uri = Uri.parse('$_authBaseUrl$path');
+    final uri = Uri.parse('$usersApiBaseUrl$path');
     http.Response res;
     try {
       res = await http
