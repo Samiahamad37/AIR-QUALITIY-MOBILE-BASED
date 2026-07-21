@@ -10,6 +10,7 @@ import '/services/api_service.dart';
 import '/screens/app_theme.dart';
 import '/widgets/common_widget.dart';
 import '/services/shared_data_service.dart';
+import '/utils/device_labels.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 const String defaultDevice = 'lands-building';
@@ -184,7 +185,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                     items: service.devices
                                         .map((d) => DropdownMenuItem(
                                               value: d,
-                                              child: Text(d,
+                                              child: Text(
+                                                  deviceDisplayName(d),
                                                   style: TextStyle(
                                                       color:
                                                           palette.textPrimary)),
@@ -551,7 +553,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                         color: palette.textPrimary)),
                 const SizedBox(height: 4),
                 Text(
-                  service.selectedDevice,
+                  deviceDisplayName(service.selectedDevice),
                   style: TextStyle(fontSize: 13, color: palette.textSecondary),
                 ),
               ]),
