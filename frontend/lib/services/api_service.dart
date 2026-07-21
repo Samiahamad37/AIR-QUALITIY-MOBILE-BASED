@@ -171,30 +171,34 @@ class AirQualityApiService {
 // }
   Future<Map<String, dynamic>> fetchRecommendations({int aqi = 0}) async {
     try {
-      final uri = Uri.parse('https://airquality-ai.tlms.live/api/recommend/')
-          .replace(queryParameters: {'aqi': '$aqi'});
- 
-      debugPrint('>>> Requesting: $uri');
- 
-      final res = await http
-          .get(uri, headers: {'Accept': 'application/json'})
-          .timeout(const Duration(seconds: 15));
- 
-      debugPrint('>>> Response status: ${res.statusCode}');
- 
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map<String, dynamic>) return decoded;
-        // API returned non-map (e.g. HTML) — return empty map gracefully
+      final data = await _get('/recommend/', {'aqi': '$aqi'}, false);
+      return Map<String, dynamic>.from(data as Map);
+    } catch (_) {
+      // Fallback to external AI API if backend route unavailable.
+      try {
+        final uri = Uri.parse('https://airquality-ai.tlms.live/api/recommend/')
+            .replace(queryParameters: {'aqi': '$aqi'});
+
+        debugPrint('>>> Requesting: $uri');
+
+        final res = await http
+            .get(uri, headers: {'Accept': 'application/json'})
+            .timeout(const Duration(seconds: 15));
+
+        debugPrint('>>> Response status: ${res.statusCode}');
+
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          final decoded = jsonDecode(res.body);
+          if (decoded is Map<String, dynamic>) return decoded;
+          return {};
+        }
+        throw ApiException(res.statusCode, res.reasonPhrase ?? 'Error');
+      } on ApiException {
+        rethrow;
+      } catch (e) {
+        debugPrint('>>> Request failed: $e');
         return {};
       }
-      throw ApiException(res.statusCode, res.reasonPhrase ?? 'Error');
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      debugPrint('>>> Request failed: $e');
-      // Return empty map so Health screen still loads with local recs
-      return {};
     }
   }
 
