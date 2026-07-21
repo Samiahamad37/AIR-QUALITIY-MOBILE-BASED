@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import '/config/api_config.dart';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-// Android emulator  → 10.0.2.2:8000
-// iOS simulator     → 127.0.0.1:8000
-// Real device       → your machine's local IP e.g. 192.168.1.x:8000
-
-const String _baseUrl = 'http://92.5.10.116/api/air-quality';
+// Debug  → local Django (127.0.0.1:8000, or 10.0.2.2 on Android emulator)
+// Release → production VM at 92.5.10.116
+// Override: flutter run --dart-define=API_HOST=192.168.x.x
 
 const String _apiRootUrl = 'https://airquality-ai.tlms.live/api';
 const Duration _timeout = Duration(seconds: 8);
@@ -37,7 +36,7 @@ class ApiException implements Exception {
 
 Future<dynamic> _get(String path,
     [Map<String, String>? params, bool useRoot = false]) async {
-  final root = useRoot ? _apiRootUrl : _baseUrl;
+  final root = useRoot ? _apiRootUrl : airQualityApiBaseUrl;
   final uri = (params != null && params.isNotEmpty)
       ? Uri.parse('$root$path').replace(queryParameters: params)
       : Uri.parse('$root$path');
