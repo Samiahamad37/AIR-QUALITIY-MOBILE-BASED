@@ -1,10 +1,10 @@
 const deviceIdByLabel = {
-  'Mwenge': 'lands-building',
+  'Lands Building': 'lands-building',
   'Planing Building': 'planing-building',
 };
 
 const deviceLabelById = {
-  'lands-building': 'Mwenge',
+  'lands-building': 'Lands Building',
   'planing-building': 'Planing Building',
 };
 
