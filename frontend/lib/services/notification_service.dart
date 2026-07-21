@@ -9,14 +9,26 @@ class NotificationService extends ChangeNotifier {
 
   static const _prefNotificationsEnabled = 'notifications_enabled';
   static const _prefAqiThreshold = 'aqi_alert_threshold';
+  static const _prefNotifyOnLevelChange = 'notify_on_level_change';
+  static const _prefLastLevelIndex = 'last_aqi_level_index';
+  static const _prefWasAboveThreshold = 'was_above_aqi_threshold';
+  static const _prefHasBaseline = 'aqi_notification_baseline_set';
+
+  static const _thresholdNotificationId = 1001;
+  static const _levelChangeNotificationId = 1002;
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
-  bool _notificationsEnabled = true;
-  int _aqiThreshold = 150;
-  int? _lastNotifiedAqi;
 
-  bool get enabled => _notificationsEnabled;
+  bool? _notificationsEnabled;
+  bool? _notifyOnLevelChange;
+  int _aqiThreshold = 150;
+  int? _lastLevelIndex;
+  bool? _wasAboveThreshold;
+  bool? _hasBaseline;
+
+  bool get enabled => _notificationsEnabled ?? true;
+  bool get notifyOnLevelChange => _notifyOnLevelChange ?? true;
   int get aqiThreshold => _aqiThreshold;
   String get thresholdLabel =>
       '$_aqiThreshold — ${_thresholdName(_aqiThreshold)}';
@@ -41,43 +53,142 @@ class NotificationService extends ChangeNotifier {
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _notificationsEnabled = prefs.getBool(_prefNotificationsEnabled) ?? true;
+    _notifyOnLevelChange = prefs.getBool(_prefNotifyOnLevelChange) ?? true;
     _aqiThreshold = prefs.getInt(_prefAqiThreshold) ?? 150;
+    _lastLevelIndex = prefs.getInt(_prefLastLevelIndex);
+    _wasAboveThreshold = prefs.getBool(_prefWasAboveThreshold) ?? false;
+    _hasBaseline = prefs.getBool(_prefHasBaseline) ?? false;
     notifyListeners();
   }
 
   Future<void> setEnabled(bool value) async {
-    if (_notificationsEnabled == value) return;
+    if (enabled == value) return;
     _notificationsEnabled = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefNotificationsEnabled, value);
     notifyListeners();
   }
 
-  Future<void> setAqiThreshold(int threshold) async {
-    if (_aqiThreshold == threshold) return;
-    _aqiThreshold = threshold;
+  Future<void> setNotifyOnLevelChange(bool value) async {
+    if (notifyOnLevelChange == value) return;
+    _notifyOnLevelChange = value;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_prefAqiThreshold, threshold);
+    await prefs.setBool(_prefNotifyOnLevelChange, value);
     notifyListeners();
   }
 
-  Future<void> maybeNotifyAqiAlert(int aqi) async {
-    if (!enabled) return;
-    if (aqi <= aqiThreshold) {
-      _lastNotifiedAqi = null;
+  Future<void> setAqiThreshold(int threshold) async {
+    if (_aqiThreshold == threshold) return;
+    _aqiThreshold = threshold;
+    _wasAboveThreshold = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefAqiThreshold, threshold);
+    await prefs.setBool(_prefWasAboveThreshold, false);
+    notifyListeners();
+  }
+
+  /// Evaluates current AQI and sends alerts for threshold breach or level change.
+  Future<void> evaluateAqi(int aqi, {String? location}) async {
+    if (!enabled || kIsWeb) return;
+
+    final station = location ?? 'your station';
+    final level = getAqiLevel(aqi);
+    final levelIndex = _levelIndexForAqi(aqi);
+    final isAboveThreshold = aqi > _aqiThreshold;
+    final hasBaseline = _hasBaseline ?? false;
+    final wasAbove = _wasAboveThreshold ?? false;
+
+    if (!hasBaseline) {
+      await _persistState(
+        levelIndex: levelIndex,
+        wasAboveThreshold: isAboveThreshold,
+        hasBaseline: true,
+      );
       return;
     }
 
-    if (_lastNotifiedAqi == aqi) return;
-    _lastNotifiedAqi = aqi;
+    if (notifyOnLevelChange &&
+        _lastLevelIndex != null &&
+        levelIndex != _lastLevelIndex) {
+      final previous = getAqiLevel(_aqiForLevelIndex(_lastLevelIndex!));
+      final improved = levelIndex < _lastLevelIndex!;
+      await _showNotification(
+        id: _levelChangeNotificationId,
+        title: improved ? 'AQI improved' : 'AQI level changed',
+        body: improved
+            ? 'Air quality at $station improved from ${previous.name} to '
+                '${level.name} (AQI $aqi). ${level.advice}'
+            : 'Air quality at $station changed from ${previous.name} to '
+                '${level.name} (AQI $aqi). ${level.advice}',
+      );
+    }
 
-    await _showNotification(
-      title: 'AQI Alert — $aqi',
-      body: _notificationBody(aqi),
+    if (isAboveThreshold && !wasAbove) {
+      await _showNotification(
+        id: _thresholdNotificationId,
+        title: 'AQI above threshold',
+        body: 'AQI at $station is $aqi (your alert threshold is '
+            '$_aqiThreshold). ${level.name}: ${level.advice}',
+      );
+    }
+
+    await _persistState(
+      levelIndex: levelIndex,
+      wasAboveThreshold: isAboveThreshold,
     );
   }
 
+  /// Backward-compatible entry point used by existing screens.
+  Future<void> maybeNotifyAqiAlert(int aqi, {String? location}) =>
+      evaluateAqi(aqi, location: location);
+
+  Future<void> _persistState({
+    required int levelIndex,
+    required bool wasAboveThreshold,
+    bool? hasBaseline,
+  }) async {
+    _lastLevelIndex = levelIndex;
+    _wasAboveThreshold = wasAboveThreshold;
+    if (hasBaseline != null) {
+      _hasBaseline = hasBaseline;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefLastLevelIndex, levelIndex);
+    await prefs.setBool(_prefWasAboveThreshold, wasAboveThreshold);
+    if (hasBaseline != null) {
+      await prefs.setBool(_prefHasBaseline, hasBaseline);
+    }
+  }
+
+  int _levelIndexForAqi(int aqi) {
+    if (aqi <= 50) return 0;
+    if (aqi <= 100) return 1;
+    if (aqi <= 150) return 2;
+    if (aqi <= 200) return 3;
+    if (aqi <= 300) return 4;
+    return 5;
+  }
+
+  int _aqiForLevelIndex(int index) {
+    switch (index) {
+      case 0:
+        return 40;
+      case 1:
+        return 75;
+      case 2:
+        return 125;
+      case 3:
+        return 175;
+      case 4:
+        return 250;
+      default:
+        return 350;
+    }
+  }
+
   Future<void> _showNotification({
+    required int id,
     required String title,
     required String body,
   }) async {
@@ -95,10 +206,13 @@ class NotificationService extends ChangeNotifier {
 
     const iosDetails = DarwinNotificationDetails();
     const details = NotificationDetails(
-        android: androidDetails, iOS: iosDetails, macOS: iosDetails);
+      android: androidDetails,
+      iOS: iosDetails,
+      macOS: iosDetails,
+    );
 
     await _plugin.show(
-      id: 0,
+      id: id,
       title: title,
       body: body,
       notificationDetails: details,
@@ -122,6 +236,13 @@ class NotificationService extends ChangeNotifier {
 
   Future<void> _requestPermissions() async {
     if (kIsWeb) return;
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       await _plugin
           .resolvePlatformSpecificImplementation<
@@ -134,11 +255,6 @@ class NotificationService extends ChangeNotifier {
               MacOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(alert: true, badge: true, sound: true);
     }
-  }
-
-  String _notificationBody(int aqi) {
-    final level = getAqiLevel(aqi);
-    return '${level.name}: ${level.advice}';
   }
 
   String _thresholdName(int threshold) {
@@ -159,5 +275,4 @@ class NotificationService extends ChangeNotifier {
   }
 }
 
-/// Singleton shorthand.
 final notificationService = NotificationService.instance;
