@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,25 +14,55 @@ import '/screens/app_theme.dart';
 /// All screens subscribe to this service to stay in sync.
 class SharedDataService extends ChangeNotifier {
   static const _prefDevice = 'default_sensor_device';
+  static const _refreshInterval = Duration(seconds: 60);
 
   String _selectedDevice = defaultDevice;
   List<String> _devices = [];
   AirQualityData? _currentData;
-  bool _isLoading = true;
+  bool? _isLoading;
+  bool? _isRefreshing;
   String? _error;
   DateTime? _lastUpdated;
   String _connectionState = 'disconnected';
+  Map<String, Map<String, dynamic>>? _deviceAqiCache;
+  Timer? _refreshTimer;
+  Future<void>? _loadInFlight;
 
   String get selectedDevice => _selectedDevice;
   List<String> get devices => _devices;
   AirQualityData? get currentData => _currentData;
-  bool get isLoading => _isLoading;
+  bool get isLoading => _isLoading ?? true;
+  bool get isRefreshing => _isRefreshing ?? false;
   String? get error => _error;
   DateTime? get lastUpdated => _lastUpdated;
   String get connectionState => _connectionState;
 
+  Map<String, Map<String, dynamic>> get deviceAqiById =>
+      Map.unmodifiable(_cache);
+
+  Map<String, Map<String, dynamic>> get _cache =>
+      _deviceAqiCache ??= <String, Map<String, dynamic>>{};
+
   SharedDataService() {
     _loadPreferences();
+    _startAutoRefresh();
+  }
+
+  Map<String, dynamic>? aqiDataFor(String deviceId) => _cache[deviceId];
+
+  int aqiForDevice(String deviceId) =>
+      (aqiDataFor(deviceId)?['aqi'] as num?)?.toInt() ?? 0;
+
+  DateTime? aqiUpdatedAtFor(String deviceId) {
+    final ts = aqiDataFor(deviceId)?['timestamp'];
+    return ts == null ? null : parseApiTimestamp(ts);
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+      loadData(background: true);
+    });
   }
 
   Future<void> _loadPreferences() async {
@@ -41,24 +73,73 @@ class SharedDataService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> loadData() async {
-    _isLoading = true;
-    _error = null;
+  Future<void> _refreshDeviceAqiCache(List<String> deviceIds) async {
+    final ids = deviceIds.isEmpty ? allowedDevices : deviceIds;
+    final entries = await Future.wait(
+      ids.map((id) async {
+        try {
+          final data = await api.fetchDeviceAqi(deviceId: id);
+          return MapEntry(id, data);
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
+
+    for (final entry in entries) {
+      if (entry != null) {
+        _cache[entry.key] = entry.value;
+      }
+    }
+  }
+
+  /// Fetch device list and AQI data for the selected device.
+  Future<void> loadData({bool background = false}) async {
+    if (_loadInFlight != null) {
+      await _loadInFlight;
+      if (background) return;
+    }
+
+    final load = _performLoad(background: background);
+    _loadInFlight = load;
+    try {
+      await load;
+    } finally {
+      if (identical(_loadInFlight, load)) {
+        _loadInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _performLoad({required bool background}) async {
+    if (!background) {
+      _isLoading = true;
+      _error = null;
+    } else if (!isLoading) {
+      _isRefreshing = true;
+    }
     notifyListeners();
 
     try {
+      final devices = await api.fetchDevices();
+      _devices = devices;
+
+      await _refreshDeviceAqiCache(devices);
+
       final results = await Future.wait([
-        api.fetchDevices(),
         api.fetchDeviceAqi(deviceId: _selectedDevice),
         api.fetchDeviceReadings(deviceId: _selectedDevice, hours: 24),
       ]);
+      final aqiMap = Map<String, dynamic>.from(results[0] as Map);
+      final readingsList =
+          List<Map<String, dynamic>>.from(results[1] as List);
 
-      _devices = results[0] as List<String>;
-      final aqiMap = results[1] as Map<String, dynamic>;
-      final readingsList = results[2] as List<Map<String, dynamic>>;
+      _cache[_selectedDevice] = aqiMap;
 
-      final pollutants = aqiMap['pollutants'] as Map<String, dynamic>? ?? {};
-      final environment = aqiMap['environment'] as Map<String, dynamic>? ?? {};
+      final pollutants =
+          Map<String, dynamic>.from(aqiMap['pollutants'] as Map? ?? {});
+      final environment =
+          Map<String, dynamic>.from(aqiMap['environment'] as Map? ?? {});
       final hourlyData = _buildHourlyData(readingsList);
 
       var updatedAt = parseApiTimestamp(aqiMap['timestamp']);
@@ -118,17 +199,20 @@ class SharedDataService extends ChangeNotifier {
         hourlyData: hourlyData,
       );
       _lastUpdated = DateTime.now();
-      _isLoading = false;
+      _error = null;
       await notificationService.evaluateAqi(
         _currentData!.aqi,
         location: deviceDisplayName(_selectedDevice),
       );
     } catch (e) {
-      _error = e.toString();
+      if (!background || _currentData == null) {
+        _error = e.toString();
+      }
+    } finally {
       _isLoading = false;
+      _isRefreshing = false;
+      notifyListeners();
     }
-
-    notifyListeners();
   }
 
   Future<void> setSelectedDevice(String deviceId) async {
@@ -208,6 +292,8 @@ class SharedDataService extends ChangeNotifier {
         if (sensorId != _selectedDevice) {
           _selectedDevice = sensorId;
           await loadData();
+        } else {
+          await loadData(background: true);
         }
 
         _connectionState = 'connected';
