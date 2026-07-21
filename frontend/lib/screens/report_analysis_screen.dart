@@ -13,6 +13,8 @@ import '/screens/app_theme.dart';
 import '/services/auth_service.dart';
 import '/services/shared_data_service.dart';
 import '/L10n/app_localizations.dart';
+import '/utils/device_labels.dart';
+import '/utils/time_utils.dart';
 
 
 
@@ -34,34 +36,42 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   bool _isLoadingComparison = true;
   bool _isExportingPdf = false;
   bool _isExportingCsv = false;
+  String? _trackedDevice;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-    _loadDeviceComparison();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAll());
   }
 
-  Future<void> _load() async {
+  Future<void> _loadAll() async {
+    final device = context.read<SharedDataService>().selectedDevice;
+    _trackedDevice = device;
+    await Future.wait([
+      _load(device: device),
+      _loadDeviceComparison(),
+      context.read<SharedDataService>().loadData(background: true),
+    ]);
+  }
+
+  Future<void> _load({String? device}) async {
+    final selectedDevice =
+        device ?? context.read<SharedDataService>().selectedDevice;
     setState(() {
       _isLoading = true;
       _error = null;
     });
     try {
-      final device = context.read<SharedDataService>().selectedDevice;
-      print('Loading data for device: $device, hours: ${_periods[_period]}');
       final readings = await api.fetchDeviceReadings(
-        deviceId: device,
+        deviceId: selectedDevice,
         hours: _periods[_period]!,
       );
-      print('Received ${readings.length} readings');
       if (!mounted) return;
       setState(() {
         _readings = readings;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
       if (!mounted) return;
       setState(() {
         _error = e.toString();
@@ -76,28 +86,27 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
     });
     try {
       final devices = await api.fetchDevices();
-      final readingsMap = <String, List<Map<String, dynamic>>>{};
-      
-      for (final device in devices) {
-        try {
-          final readings = await api.fetchDeviceReadings(
-            deviceId: device,
-            hours: _periods[_period]!,
-          );
-          readingsMap[device] = readings;
-        } catch (e) {
-          print('Error loading data for device $device: $e');
-          readingsMap[device] = [];
-        }
-      }
-      
+      final hours = _periods[_period]!;
+      final results = await Future.wait(
+        devices.map((device) async {
+          try {
+            final readings = await api.fetchDeviceReadings(
+              deviceId: device,
+              hours: hours,
+            );
+            return MapEntry(device, readings);
+          } catch (_) {
+            return MapEntry(device, <Map<String, dynamic>>[]);
+          }
+        }),
+      );
+
       if (!mounted) return;
       setState(() {
-        _deviceReadings = readingsMap;
+        _deviceReadings = Map.fromEntries(results);
         _isLoadingComparison = false;
       });
     } catch (e) {
-      print('Error loading device comparison: $e');
       if (!mounted) return;
       setState(() {
         _isLoadingComparison = false;
@@ -261,7 +270,12 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final auth = context.watch<AuthService>();
+    final shared = context.watch<SharedDataService>();
     final l10n = AppLocalizations.of(context);
+
+    if (_trackedDevice != shared.selectedDevice) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadAll());
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -303,14 +317,14 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: _isLoading ? null : _load,
+            onPressed: _isLoading && _isLoadingComparison ? null : _loadAll,
             tooltip: l10n.errorRetry,
           ),
         ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: _loadAll,
           color: AppColors.good,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -324,7 +338,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                 const SizedBox(height: 20),
                 if (_isLoading)
                   const Padding(
-                    padding: EdgeInsets.only(top: 80),
+                    padding: EdgeInsets.symmetric(vertical: 48),
                     child: Center(
                       child: CircularProgressIndicator(color: AppColors.good),
                     ),
@@ -335,6 +349,10 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                   _emptyView(palette, l10n)
                 else
                   ..._report(palette, l10n),
+                const SizedBox(height: 24),
+                _sectionTitle(palette, l10n.reportDeviceComparison),
+                const SizedBox(height: 12),
+                _deviceComparisonCard(palette, shared.selectedDevice),
               ],
             ),
           ),
@@ -358,7 +376,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          '${l10n.reportTitle} — $device',
+          '${l10n.reportTitle} — ${deviceDisplayName(device)}',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -386,8 +404,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
               onTap: () {
                 if (p == _period) return;
                 setState(() => _period = p);
-                _load();
-                _loadDeviceComparison();
+                _loadAll();
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -441,10 +458,6 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
       _sectionTitle(palette, l10n.reportTimeOfDay),
       const SizedBox(height: 12),
       _timeOfDayCard(palette),
-      const SizedBox(height: 24),
-      _sectionTitle(palette, l10n.reportDeviceComparison),
-      const SizedBox(height: 12),
-      _deviceComparisonCard(palette),
       const SizedBox(height: 24),
       _sectionTitle(palette, l10n.reportAnalysis),
       const SizedBox(height: 12),
@@ -590,10 +603,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                 getTitlesWidget: (val, _) {
                   final i = val.toInt();
                   if (i < 0 || i >= ordered.length) return const SizedBox();
-                  final ts =
-                      DateTime.tryParse(ordered[i]['timestamp'].toString())
-                          ?.toLocal();
-                  if (ts == null) return const SizedBox();
+                  final ts = parseApiTimestamp(ordered[i]['timestamp']);
                   final fmt = _period == '24H' ? 'ha' : 'd/M';
                   return Text(
                     DateFormat(fmt).format(ts).toLowerCase(),
@@ -805,12 +815,10 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
     // Group readings by hour of day (0-23)
     final hourlyAqi = <int, List<double>>{};
     for (var reading in _readings) {
-      final ts = DateTime.tryParse(reading['timestamp'].toString())?.toLocal();
-      if (ts != null) {
-        final hour = ts.hour;
-        final aqi = _quickAqi(reading).toDouble();
-        hourlyAqi.putIfAbsent(hour, () => []).add(aqi);
-      }
+      final ts = parseApiTimestamp(reading['timestamp']);
+      final hour = ts.hour;
+      final aqi = _quickAqi(reading).toDouble();
+      hourlyAqi.putIfAbsent(hour, () => []).add(aqi);
     }
 
     // Calculate average AQI per hour
@@ -889,17 +897,34 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
     );
   }
 
-  Widget _deviceComparisonCard(AppPalette palette) {
-    if (_isLoadingComparison) {
+  Widget _deviceComparisonCard(AppPalette palette, String selectedDevice) {
+    final shared = context.watch<SharedDataService>();
+
+    if (_isLoadingComparison && _deviceReadings.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: palette.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: palette.border),
         ),
-        child: const Center(
-          child: CircularProgressIndicator(color: AppColors.good),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.good,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Loading comparison…',
+              style: TextStyle(fontSize: 13, color: palette.textSecondary),
+            ),
+          ],
         ),
       );
     }
@@ -929,23 +954,22 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
       );
     }
 
-    // Calculate average AQI for each device
     final deviceStats = <String, Map<String, dynamic>>{};
     for (final entry in _deviceReadings.entries) {
       final device = entry.key;
       final readings = entry.value;
-      if (readings.isNotEmpty) {
-        final aqis = readings.map(_quickAqi).toList();
-        final avgAqi = _avg(aqis).round();
-        final maxAqi = aqis.reduce((a, b) => a > b ? a : b);
-        final level = getAqiLevel(avgAqi);
-        deviceStats[device] = {
-          'avgAqi': avgAqi,
-          'maxAqi': maxAqi,
-          'level': level,
-          'count': readings.length,
-        };
+      if (readings.isEmpty) {
+        deviceStats[device] = {'empty': true};
+        continue;
       }
+      final aqis = readings.map(_quickAqi).toList();
+      final latestTs = parseApiTimestamp(readings.first['timestamp']);
+      deviceStats[device] = {
+        'avgAqi': _avg(aqis).round(),
+        'maxAqi': aqis.reduce((a, b) => a > b ? a : b),
+        'count': readings.length,
+        'updated': formatTimeAgo(latestTs),
+      };
     }
 
     return Container(
@@ -958,77 +982,183 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'Live AQI matches Home and Map · $_period avg shown below',
+            style: TextStyle(fontSize: 11, color: palette.textMuted),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tap a station to view its report',
+            style: TextStyle(fontSize: 11, color: palette.textMuted),
+          ),
+          const SizedBox(height: 12),
           ...deviceStats.entries.map((entry) {
+            final deviceId = entry.key;
             final stats = entry.value;
-            final level = stats['level'] as AqiLevel;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: palette.cardLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: level.color,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+            final isSelected = deviceId == selectedDevice;
+            final liveAqi = shared.aqiForDevice(deviceId);
+            final liveLevel = getAqiLevel(liveAqi);
+
+            if (stats['empty'] == true) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: palette.cardLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? AppColors.good : Colors.transparent,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.key,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: palette.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${stats['count']} readings',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: palette.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${stats['avgAqi']}',
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.cloud_off_rounded,
+                          size: 18, color: palette.textMuted),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          deviceDisplayName(deviceId),
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: level.color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: palette.textPrimary,
                           ),
                         ),
-                        Text(
-                          level.shortName,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: palette.textMuted,
+                      ),
+                      Text(
+                        'No data',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final avgAqi = stats['avgAqi'] as int;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    await context
+                        .read<SharedDataService>()
+                        .setSelectedDevice(deviceId);
+                    if (!mounted) return;
+                    await _loadAll();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.good.withOpacity(0.08)
+                          : palette.cardLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? AppColors.good : palette.border,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: liveLevel.color,
+                            borderRadius: BorderRadius.circular(2),
                           ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    deviceDisplayName(deviceId),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: palette.textPrimary,
+                                    ),
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.good.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Active',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.good,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Live · ${stats['count']} readings in $_period · avg $avgAqi',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: palette.textSecondary,
+                                ),
+                              ),
+                              if (stats['updated'] != null)
+                                Text(
+                                  'Latest reading ${stats['updated']}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: palette.textMuted,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '$liveAqi',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: liveLevel.color,
+                              ),
+                            ),
+                            Text(
+                              liveLevel.shortName,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: palette.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -1138,7 +1268,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
               ),
               const SizedBox(height: 16),
               OutlinedButton(
-                onPressed: _load,
+                onPressed: _loadAll,
                 child: Text(l10n.reportRetry),
               ),
             ],
