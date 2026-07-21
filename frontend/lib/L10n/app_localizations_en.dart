@@ -304,6 +304,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAqiThreshold => 'AQI Alert Threshold';
 
   @override
+  String get settingsLevelChangeAlerts => 'Level Change Alerts';
+
+  @override
+  String get settingsLevelChangeSub =>
+      'Alert when air quality category changes';
+
+  @override
+  String get settingsLevelChangeOn => 'Level change alerts on';
+
+  @override
+  String get settingsLevelChangeOff => 'Level change alerts off';
+
+  @override
   String get settingsRefreshInterval => 'Refresh Interval';
 
   @override
