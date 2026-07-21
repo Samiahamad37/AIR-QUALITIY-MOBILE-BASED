@@ -662,6 +662,30 @@ abstract class AppLocalizations {
   /// **'AQI Alert Threshold'**
   String get settingsAqiThreshold;
 
+  /// Notify when AQI category changes
+  ///
+  /// In en, this message translates to:
+  /// **'Level Change Alerts'**
+  String get settingsLevelChangeAlerts;
+
+  /// Level change alerts subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Alert when air quality category changes'**
+  String get settingsLevelChangeSub;
+
+  /// Level change alerts enabled
+  ///
+  /// In en, this message translates to:
+  /// **'Level change alerts on'**
+  String get settingsLevelChangeOn;
+
+  /// Level change alerts disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Level change alerts off'**
+  String get settingsLevelChangeOff;
+
   /// Refresh interval row
   ///
   /// In en, this message translates to:
