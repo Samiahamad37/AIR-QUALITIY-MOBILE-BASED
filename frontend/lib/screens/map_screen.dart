@@ -13,27 +13,59 @@ import 'map/map_layer_stub.dart'
     if (dart.library.io) 'map/map_layer_io.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final bool isActive;
+
+  const MapScreen({super.key, this.isActive = false});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixin {
   MapLayerHandle? _mapHandle;
   MapDeviceLocation? _selected;
+  bool _mapMounted = false;
+
+  @override
+  bool get wantKeepAlive => _mapMounted;
 
   @override
   void initState() {
     super.initState();
+    if (widget.isActive) {
+      _scheduleMapMount();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = context.read<SharedDataService>();
       if (service.deviceAqiById.isEmpty) {
-        service.loadData();
+        service.loadMapData();
       } else {
-        service.loadData(background: true);
+        service.loadMapData(background: true);
       }
     });
+  }
+
+  void _scheduleMapMount() {
+    if (_mapMounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _mapMounted) return;
+      setState(() => _mapMounted = true);
+    });
+  }
+
+  @override
+  void didUpdateWidget(MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _scheduleMapMount();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_selected != null) {
+          _mapHandle?.moveTo(_selected!.position, 17);
+        } else {
+          _mapHandle?.moveTo(mapInitialPosition, 16);
+        }
+      });
+    }
   }
 
   @override
@@ -43,7 +75,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _refresh() =>
-      context.read<SharedDataService>().loadData(background: true);
+      context.read<SharedDataService>().loadMapData(background: true);
 
   Color _aqiColor(int aqi) => getAqiLevel(aqi).color;
 
@@ -52,8 +84,17 @@ class _MapScreenState extends State<MapScreen> {
     _mapHandle?.moveTo(device.position, 17);
   }
 
+  String _mapErrorMessage(String error) {
+    if (error.contains('TimeoutException')) {
+      return 'Could not reach the API in time. '
+          'Ensure the backend is running (py manage.py runserver 0.0.0.0:8000).';
+    }
+    return error;
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final palette = context.palette;
     final bg = Theme.of(context).scaffoldBackgroundColor;
     final service = context.watch<SharedDataService>();
@@ -65,15 +106,20 @@ class _MapScreenState extends State<MapScreen> {
       child: Scaffold(
         backgroundColor: bg,
         body: Stack(
+          fit: StackFit.expand,
           children: [
-            buildAirQualityMapLayer(
-              service: service,
-              initialLoad: initialLoad,
-              selectedDeviceId: _selected?.deviceId,
-              onSelect: _selectDevice,
-              onDeselect: () => setState(() => _selected = null),
-              onHandleReady: (handle) => _mapHandle = handle,
-              aqiColor: _aqiColor,
+            Positioned.fill(
+              child: _mapMounted
+                  ? buildAirQualityMapLayer(
+                      service: service,
+                      initialLoad: initialLoad,
+                      selectedDeviceId: _selected?.deviceId,
+                      onSelect: _selectDevice,
+                      onDeselect: () => setState(() => _selected = null),
+                      onHandleReady: (handle) => _mapHandle = handle,
+                      aqiColor: _aqiColor,
+                    )
+                  : ColoredBox(color: bg),
             ),
             Positioned(
               top: 0,
@@ -217,7 +263,7 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          service.error!,
+                          _mapErrorMessage(service.error!),
                           style: const TextStyle(
                               color: Colors.white, fontSize: 12),
                         ),

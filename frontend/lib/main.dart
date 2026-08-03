@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'L10n/app_localizations.dart';
 import 'screens/app_theme.dart';
 import 'screens/screen1.dart';
@@ -13,8 +15,19 @@ import '/services/shared_data_service.dart';
 import '/services/auth_service.dart';
 import '/services/notification_service.dart';
 
+Future<void> _configureGoogleMaps() async {
+  if (kIsWeb) return;
+  final mapsPlatform = GoogleMapsFlutterPlatform.instance;
+  if (mapsPlatform is GoogleMapsFlutterAndroid) {
+    // TextureView tends to work better than Hybrid Composition on emulators.
+    mapsPlatform.useAndroidViewSurface = false;
+    await mapsPlatform.initializeWithRenderer(AndroidMapRenderer.latest);
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _configureGoogleMaps();
   if (!kIsWeb) {
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
@@ -120,14 +133,6 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ForecastScreen(),
-    HealthScreen(),
-    MapScreen(),
-    SettingsScreen(),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -168,7 +173,16 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          const HomeScreen(),
+          const ForecastScreen(),
+          const HealthScreen(),
+          MapScreen(isActive: _currentIndex == 3),
+          const SettingsScreen(),
+        ],
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
             color: bgColor,

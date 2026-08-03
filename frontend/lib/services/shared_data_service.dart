@@ -111,6 +111,33 @@ class SharedDataService extends ChangeNotifier {
     }
   }
 
+  /// Lightweight refresh for the map screen — device list + AQI only (no 24h readings).
+  Future<void> loadMapData({bool background = false}) async {
+    if (!background) {
+      _isLoading = true;
+      _error = null;
+    } else if (!isLoading) {
+      _isRefreshing = true;
+    }
+    notifyListeners();
+
+    try {
+      final devices = await api.fetchDevices();
+      _devices = devices;
+      await _refreshDeviceAqiCache(devices);
+      _lastUpdated = DateTime.now();
+      _error = null;
+    } catch (e) {
+      if (_cache.isEmpty && (!background || _currentData == null)) {
+        _error = e.toString();
+      }
+    } finally {
+      _isLoading = false;
+      _isRefreshing = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _performLoad({required bool background}) async {
     if (!background) {
       _isLoading = true;
@@ -205,7 +232,7 @@ class SharedDataService extends ChangeNotifier {
         location: deviceDisplayName(_selectedDevice),
       );
     } catch (e) {
-      if (!background || _currentData == null) {
+      if (_cache.isEmpty && (!background || _currentData == null)) {
         _error = e.toString();
       }
     } finally {

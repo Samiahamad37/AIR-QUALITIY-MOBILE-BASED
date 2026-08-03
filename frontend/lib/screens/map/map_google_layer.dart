@@ -124,25 +124,39 @@ class _GoogleMapLayerState extends State<_GoogleMapLayer> {
 
   @override
   Widget build(BuildContext context) {
-    return gmaps.GoogleMap(
-      initialCameraPosition: gmaps.CameraPosition(
-        target: gmaps.LatLng(
-          mapInitialPosition.latitude,
-          mapInitialPosition.longitude,
+    return SizedBox.expand(
+      child: gmaps.GoogleMap(
+        initialCameraPosition: gmaps.CameraPosition(
+          target: gmaps.LatLng(
+            mapInitialPosition.latitude,
+            mapInitialPosition.longitude,
+          ),
+          zoom: 16,
         ),
-        zoom: 16,
+        onMapCreated: (controller) {
+          _handle.bind(controller);
+          widget.onHandleReady(_handle);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            controller.animateCamera(
+              gmaps.CameraUpdate.newLatLngZoom(
+                gmaps.LatLng(
+                  mapInitialPosition.latitude,
+                  mapInitialPosition.longitude,
+                ),
+                16,
+              ),
+            );
+          });
+        },
+        onTap: (_) => widget.onDeselect(),
+        myLocationButtonEnabled: false,
+        myLocationEnabled: false,
+        zoomControlsEnabled: false,
+        mapToolbarEnabled: false,
+        compassEnabled: false,
+        circles: widget.initialLoad ? {} : _buildCircles(),
+        markers: widget.initialLoad ? {} : _buildMarkers(),
       ),
-      onMapCreated: (controller) {
-        _handle.bind(controller);
-        widget.onHandleReady(_handle);
-      },
-      onTap: (_) => widget.onDeselect(),
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: false,
-      mapToolbarEnabled: false,
-      compassEnabled: false,
-      circles: widget.initialLoad ? {} : _buildCircles(),
-      markers: widget.initialLoad ? {} : _buildMarkers(),
     );
   }
 }

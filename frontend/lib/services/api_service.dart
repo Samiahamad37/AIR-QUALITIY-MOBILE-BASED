@@ -9,7 +9,9 @@ import '/config/api_config.dart';
 // Override: flutter run --dart-define=API_HOST=192.168.x.x
 
 const String _apiRootUrl = 'https://airquality-ai.tlms.live/api';
-const Duration _timeout = Duration(seconds: 8);
+Duration get _timeout => kDebugMode
+    ? const Duration(seconds: 30)
+    : const Duration(seconds: 8);
 
 const List<String> allowedDevices = ['lands-building', 'planing-building'];
 const String defaultDevice = 'lands-building';
