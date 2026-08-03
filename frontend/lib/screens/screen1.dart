@@ -100,7 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
         final level = data.level;
         final maxHourlyAqi = data.hourlyData.isEmpty
             ? 1
-            : data.hourlyData.map((h) => h.aqi).reduce((a, b) => a > b ? a : b);
+            : data.hourlyData
+                .map((h) => h.aqi)
+                .reduce((a, b) => a > b ? a : b)
+                .clamp(1, 500);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: context.appOverlayStyle,
