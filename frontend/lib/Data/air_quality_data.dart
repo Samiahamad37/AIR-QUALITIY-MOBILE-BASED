@@ -104,7 +104,8 @@ class Pollutant {
     required this.color,
   });
 
-  double get ratio => (value / maxSafe).clamp(0.0, 1.0);
+  double get ratio =>
+      maxSafe > 0 ? (value / maxSafe).clamp(0.0, 1.0) : 0.0;
 }
 
 // ─── Hourly AQI Data ──────────────────────────────────────────────────────────
