@@ -186,7 +186,7 @@ class _PollutantBarState extends State<PollutantBar> with SingleTickerProviderSt
                   animation: _anim,
                   builder: (_, __) => FractionallySizedBox(
                     alignment: Alignment.centerLeft,
-                    widthFactor: p.ratio * _anim.value,
+                    widthFactor: (p.ratio * _anim.value).clamp(0.0, 1.0),
                     child: Container(
                       decoration: BoxDecoration(
                         color: p.color,
@@ -259,7 +259,9 @@ class _HourlyChartBarState extends State<HourlyChartBar> with SingleTickerProvid
   Widget build(BuildContext context) {
     final palette = context.palette;
     final level = getAqiLevel(widget.data.aqi);
-    final ratio = widget.data.aqi / widget.maxAqi;
+    final ratio = widget.maxAqi > 0
+        ? (widget.data.aqi / widget.maxAqi).clamp(0.0, 1.0)
+        : 0.0;
 
     return Expanded(
       child: Column(
@@ -281,7 +283,7 @@ class _HourlyChartBarState extends State<HourlyChartBar> with SingleTickerProvid
           AnimatedBuilder(
             animation: _anim,
             builder: (_, __) => Container(
-              height: 80 * ratio * _anim.value,
+              height: (80 * ratio * _anim.value).clamp(0.0, 80.0),
               margin: const EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
                 color: widget.data.isCurrent ? level.color : level.color.withOpacity(0.45),
