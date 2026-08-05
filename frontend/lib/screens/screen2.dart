@@ -31,8 +31,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
   List<Map<String, dynamic>> _pollutantHistory = [];
   List<Map<String, dynamic>> _forecast = [];
   List<Map<String, dynamic>> _dailyForecast = [];
-  Map<String, dynamic>? _predictionData;
   String? _forecastError;
+  String? _trendDirection;
 
   final List<String> _pollutants = ['co2', 'nox', 'voc', 'pm25', 'pm10'];
   final List<int> _hourOptions = [24, 48, 168];
@@ -81,8 +81,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
       _pollutantHistory = history;
       _forecast = hourlyForecast;
       _dailyForecast = dailyForecast;
-      _predictionData = predictionResponse;
       _forecastError = forecastError;
+      _trendDirection = predictionResponse?['trend_direction'] as String?;
     });
   }
 
@@ -90,16 +90,42 @@ class _ForecastScreenState extends State<ForecastScreen> {
     Map<String, dynamic> data,
   ) {
     final forecast6h = List<dynamic>.from(data['forecast_6h'] as List? ?? []);
-    final timestamp = DateTime.parse(data['timestamp'] as String);
+    final pm25Forecast =
+        List<dynamic>.from(data['pm25_forecast_6h'] as List? ?? []);
+    final pm10Forecast =
+        List<dynamic>.from(data['pm10_forecast_6h'] as List? ?? []);
+    final timestamp = DateTime.parse(data['timestamp'] as String).toLocal();
+    final now = DateTime.now();
 
     return forecast6h.asMap().entries.map((entry) {
       final hourOffset = entry.key + 1;
+      final forecastTime = timestamp.add(Duration(hours: hourOffset));
+      if (!forecastTime.isAfter(now)) return null;
+
+      final pm25 = entry.key < pm25Forecast.length
+          ? (pm25Forecast[entry.key] as num?)?.toDouble()
+          : null;
+      final pm10 = entry.key < pm10Forecast.length
+          ? (pm10Forecast[entry.key] as num?)?.toDouble()
+          : null;
+
+      final predictedAqi = (pm25 != null && pm10 != null)
+          ? _aqiFromPm(pm25, pm10).toDouble()
+          : (entry.value as num).toDouble();
+
       return {
-        'timestamp': timestamp.add(Duration(hours: hourOffset)).toIso8601String(),
-        'predicted_aqi': entry.value as num,
-        'confidence': data['trend_confidence'] ?? 0.0,
+        'timestamp': forecastTime.toIso8601String(),
+        'predicted_aqi': predictedAqi,
+        'pm25': pm25,
+        'pm10': pm10,
       };
-    }).toList();
+    }).whereType<Map<String, dynamic>>().toList();
+  }
+
+  int _aqiFromPm(double pm25, double pm10) {
+    final fromPm25 = (pm25 / 35 * 100).round().clamp(0, 500);
+    final fromPm10 = (pm10 / 150 * 100).round().clamp(0, 500);
+    return fromPm25 > fromPm10 ? fromPm25 : fromPm10;
   }
 
   List<Map<String, dynamic>> _buildDailyForecastFromHourly(
@@ -178,52 +204,6 @@ class _ForecastScreenState extends State<ForecastScreen> {
                             SliverToBoxAdapter(
                                 child: _buildHeader(context, service)),
 
-                            if (service.devices.length > 1)
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                                  child: DropdownButtonFormField<String>(
-                                    value: service.selectedDevice,
-                                    dropdownColor: palette.card,
-                                    style:
-                                        TextStyle(color: palette.textPrimary),
-                                    decoration: InputDecoration(
-                                      labelText: AppLocalizations.of(context)
-                                          .homeLocation,
-                                      labelStyle: TextStyle(
-                                          color: palette.textSecondary),
-                                      border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide:
-                                            BorderSide(color: palette.border),
-                                      ),
-                                      filled: true,
-                                      fillColor: palette.card,
-                                    ),
-                                    items: service.devices
-                                        .map((d) => DropdownMenuItem(
-                                              value: d,
-                                              child: Text(
-                                                  deviceDisplayName(d),
-                                                  style: TextStyle(
-                                                      color:
-                                                          palette.textPrimary)),
-                                            ))
-                                        .toList(),
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        service.setSelectedDevice(val);
-                                        _loadPollutantData();
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-
                             // ── 6h Hourly Forecast ──────────────────────────
                             if (_forecast.isEmpty && _forecastError != null)
                               SliverToBoxAdapter(
@@ -261,8 +241,11 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                   padding:
                                       const EdgeInsets.fromLTRB(16, 16, 16, 12),
                                   child: Column(children: [
+                                    AqiTrendBadge(direction: _trendDirection),
+                                    if (_trendDirection != null)
+                                      const SizedBox(height: 12),
                                     SizedBox(
-                                      height: 160,
+                                      height: 200,
                                       child: _buildHourlyChart(),
                                     ),
                                     const SizedBox(height: 8),
@@ -297,120 +280,23 @@ class _ForecastScreenState extends State<ForecastScreen> {
                               ),
                             ),
 
-                            // ── Current Parameters ─────────────────────────────
-                            if (_predictionData != null)
-                              SliverToBoxAdapter(
-                                child: SectionHeader(title: 'Current Parameters'),
+                            // ── PM2.5 / PM10 Forecast ───────────────────────
+                            SliverToBoxAdapter(
+                              child: SectionHeader(
+                                title: 'PM2.5 & PM10 Forecast',
                               ),
-                            if (_predictionData != null)
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 16),
-                                  child: GlassCard(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text('Current AQI',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: palette.textSecondary)),
-                                            Text(
-                                                '${(_predictionData!['current_aqi'] as num).toStringAsFixed(1)}',
-                                                style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: palette.textPrimary)),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text('Trend',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: palette.textSecondary)),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  (_predictionData!['trend_direction'] == 'rising')
-                                                      ? Icons.trending_up
-                                                      : Icons.trending_down,
-                                                  size: 16,
-                                                  color: (_predictionData!['trend_direction'] == 'rising')
-                                                      ? AppColors.unhealthy
-                                                      : AppColors.good,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                    '${_predictionData!['trend_direction']}',
-                                                    style: TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight: FontWeight.w600,
-                                                        color: palette.textPrimary)),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text('Confidence',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: palette.textSecondary)),
-                                            Text(
-                                                '${(_predictionData!['trend_confidence'] as num).toStringAsFixed(1)}%',
-                                                style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: palette.textPrimary)),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        const Divider(),
-                                        const SizedBox(height: 12),
-                                        Text('Pollutants',
-                                            style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                                color: palette.textPrimary)),
-                                        const SizedBox(height: 12),
-                                        _buildPollutantGrid(_predictionData!['pollutants'] as Map<String, dynamic>?),
-                                      ],
-                                    ),
-                                  ),
+                            ),
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: GlassCard(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      12, 16, 12, 12),
+                                  child: PmForecastDualChart(forecast: _forecast),
                                 ),
                               ),
-
-                            // // ── 6-Day Forecast ───────────────────────────────
-                            // SliverToBoxAdapter(
-                            //   child: SectionHeader(
-                            //       title: AppLocalizations.of(context)
-                            //           .forecast7Day),
-                            // ),
-                            // SliverToBoxAdapter(
-                            //   child: SizedBox(
-                            //     height: 130,
-                            //     child: ListView.builder(
-                            //       scrollDirection: Axis.horizontal,
-                            //       padding: const EdgeInsets.symmetric(
-                            //           horizontal: 16),
-                            //       itemCount: _dailyForecast.length,
-                            //       itemBuilder: (_, i) =>
-                            //           _DayCard(data: _dailyForecast[i]),
-                            //     ),
-                            //   ),
-                            // ),
+                            ),
 
                             // ── Historical Trends ────────────────────────────
                             SliverToBoxAdapter(
@@ -576,6 +462,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   Widget _buildHeader(BuildContext context, SharedDataService service) {
     final palette = context.palette;
+    final l10n = AppLocalizations.of(context);
     return Container(
       decoration: BoxDecoration(
         color: palette.card,
@@ -588,35 +475,85 @@ class _ForecastScreenState extends State<ForecastScreen> {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(AppLocalizations.of(context).forecastTitle,
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary)),
-                const SizedBox(height: 4),
-                Text(
-                  deviceDisplayName(service.selectedDevice),
-                  style: TextStyle(fontSize: 13, color: palette.textSecondary),
-                ),
-              ]),
-              GestureDetector(
-                onTap: _loadPollutantData,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: palette.cardLight,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: palette.border),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(l10n.forecastTitle,
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: palette.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text(
+                      deviceDisplayName(service.selectedDevice),
+                      style:
+                          TextStyle(fontSize: 13, color: palette.textSecondary),
+                    ),
+                  ]),
+                  GestureDetector(
+                    onTap: _loadPollutantData,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: palette.cardLight,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Icon(Icons.refresh_rounded,
+                          size: 18, color: palette.textSecondary),
+                    ),
                   ),
-                  child: Icon(Icons.refresh_rounded,
-                      size: 18, color: palette.textSecondary),
-                ),
+                ],
               ),
+              if (service.devices.length > 1) ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: service.selectedDevice,
+                  dropdownColor: palette.card,
+                  style: TextStyle(
+                    color: palette.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: l10n.homeLocation,
+                    labelStyle: TextStyle(color: palette.textSecondary),
+                    prefixIcon: Icon(Icons.location_searching_rounded,
+                        size: 20, color: palette.textSecondary),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: palette.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide:
+                          BorderSide(color: AppColors.good, width: 1.5),
+                    ),
+                    filled: true,
+                    fillColor: palette.cardLight,
+                  ),
+                  items: service.devices
+                      .map((d) => DropdownMenuItem(
+                            value: d,
+                            child: Text(deviceDisplayName(d),
+                                style:
+                                    TextStyle(color: palette.textPrimary)),
+                          ))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      service.setSelectedDevice(val);
+                      _loadPollutantData();
+                    }
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -625,17 +562,37 @@ class _ForecastScreenState extends State<ForecastScreen> {
   }
 
   Widget _buildHourlyChart() {
+    if (_forecast.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            AppLocalizations.of(context).forecastMlNotice,
+            style: TextStyle(
+              fontSize: 12,
+              color: context.palette.textSecondary,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     final spots = _forecast.asMap().entries.map((e) {
       final aqi = (e.value['predicted_aqi'] as num).toDouble();
       return FlSpot(e.key.toDouble(), aqi);
     }).toList();
+
+    final maxAqi = spots.map((s) => s.y).reduce(max).clamp(50.0, 300.0);
+    final palette = context.palette;
 
     return LineChart(
       LineChartData(
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 50,
+          horizontalInterval: maxAqi > 100 ? 50 : 25,
           getDrawingHorizontalLine: (_) => FlLine(
             color: AppColors.border.withOpacity(0.3),
             strokeWidth: 1,
@@ -645,30 +602,20 @@ class _ForecastScreenState extends State<ForecastScreen> {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 32,
-              interval: 50,
+              reservedSize: 36,
+              interval: maxAqi > 100 ? 50 : 25,
               getTitlesWidget: (val, _) => Text(
                 val.toInt().toString(),
-                style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textSecondary,
+                ),
               ),
             ),
           ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: 4,
-              getTitlesWidget: (val, _) {
-                final i = val.toInt();
-                if (i >= _forecast.length) return const SizedBox();
-                final ts = DateTime.parse(_forecast[i]['timestamp'].toString())
-                    .toLocal();
-                return Text(
-                  DateFormat('ha').format(ts).toLowerCase(),
-                  style:
-                      const TextStyle(fontSize: 9, color: AppColors.textMuted),
-                );
-              },
-            ),
+          bottomTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false, reservedSize: 8),
           ),
           rightTitles:
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -681,16 +628,74 @@ class _ForecastScreenState extends State<ForecastScreen> {
             spots: spots,
             isCurved: true,
             color: AppColors.good,
-            barWidth: 2.5,
+            barWidth: 3,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: AppColors.good.withOpacity(0.08),
+              color: AppColors.good.withOpacity(0.1),
             ),
           ),
         ],
         minY: 0,
-        maxY: 200,
+        maxY: maxAqi.toDouble(),
+        lineTouchData: LineTouchData(
+          enabled: true,
+          handleBuiltInTouches: true,
+          touchSpotThreshold: 30,
+          getTouchedSpotIndicator: (barData, spotIndexes) {
+            return spotIndexes.map((index) {
+              final aqi = barData.spots[index].y.toInt();
+              return TouchedSpotIndicatorData(
+                FlLine(
+                  color: palette.textSecondary.withOpacity(0.45),
+                  strokeWidth: 1.5,
+                  dashArray: [5, 4],
+                ),
+                FlDotData(
+                  show: true,
+                  getDotPainter: (spot, percent, bar, i) =>
+                      FlDotCirclePainter(
+                    radius: 7,
+                    color: getAqiLevel(aqi).color,
+                    strokeWidth: 2.5,
+                    strokeColor: palette.card,
+                  ),
+                ),
+              );
+            }).toList();
+          },
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => palette.cardLight,
+            tooltipBorder: BorderSide(color: palette.border),
+            tooltipPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final i = spot.spotIndex;
+                if (i < 0 || i >= _forecast.length) {
+                  return const LineTooltipItem('', TextStyle());
+                }
+                final ts = DateTime.parse(
+                        _forecast[i]['timestamp'].toString())
+                    .toLocal();
+                final hour =
+                    DateFormat('ha').format(ts).toLowerCase();
+                final aqi =
+                    (_forecast[i]['predicted_aqi'] as num?)?.toInt() ?? 0;
+                final level = getAqiLevel(aqi);
+                return LineTooltipItem(
+                  '$hour\nAQI $aqi',
+                  TextStyle(
+                    color: level.color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
       ),
     );
   }
@@ -722,7 +727,11 @@ class _ForecastScreenState extends State<ForecastScreen> {
               reservedSize: 40,
               getTitlesWidget: (val, _) => Text(
                 val.toStringAsFixed(1),
-                style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: context.palette.textSecondary,
+                ),
               ),
             ),
           ),
@@ -738,8 +747,11 @@ class _ForecastScreenState extends State<ForecastScreen> {
                         .toLocal();
                 return Text(
                   DateFormat('ha').format(ts).toLowerCase(),
-                  style:
-                      const TextStyle(fontSize: 9, color: AppColors.textMuted),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: context.palette.textSecondary,
+                  ),
                 );
               },
             ),
@@ -799,74 +811,6 @@ class _ForecastScreenState extends State<ForecastScreen> {
       Text(label,
           style: TextStyle(fontSize: 9, color: context.palette.textSecondary)),
     ]);
-  }
-
-  Widget _buildPollutantGrid(Map<String, dynamic>? pollutants) {
-    if (pollutants == null) return const SizedBox();
-
-    final pollutantLabels = {
-      'pm25': 'PM2.5',
-      'pm10': 'PM10',
-      'co2': 'CO2',
-      'no2': 'NO2',
-      'voc': 'VOC',
-      'humidity': 'Humidity',
-      'temperature': 'Temperature',
-    };
-
-    final pollutantUnits = {
-      'pm25': 'µg/m³',
-      'pm10': 'µg/m³',
-      'co2': 'PPM',
-      'no2': 'PPM',
-      'voc': 'PPM',
-      'humidity': '%',
-      'temperature': '°C',
-    };
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 2.5,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: pollutants.length,
-      itemBuilder: (context, index) {
-        final key = pollutants.keys.elementAt(index);
-        final value = pollutants[key];
-        final label = pollutantLabels[key] ?? key.toUpperCase();
-        final unit = pollutantUnits[key] ?? '';
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: context.palette.cardLight,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: context.palette.border.withOpacity(0.3)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: context.palette.textSecondary)),
-              const SizedBox(height: 4),
-              Text(
-                  value is num ? '${value.toStringAsFixed(1)} $unit' : '$value',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: context.palette.textPrimary)),
-            ],
-          ),
-        );
-      },
-    );
   }
 }
 
