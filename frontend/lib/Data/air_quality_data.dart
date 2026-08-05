@@ -112,13 +112,21 @@ class Pollutant {
 
 class HourlyAqi {
   final String hour;
+  final int hourOfDay;
   final int aqi;
   final bool isCurrent;
+  final bool isForecast;
+  final double? pm25;
+  final double? pm10;
 
   const HourlyAqi({
     required this.hour,
+    required this.hourOfDay,
     required this.aqi,
     this.isCurrent = false,
+    this.isForecast = false,
+    this.pm25,
+    this.pm10,
   });
 }
 
@@ -134,6 +142,8 @@ class AirQualityData {
   final double temperature;
   final double humidity;
   final double windSpeed;
+  final String? aqiTrendDirection;
+  final double? aqiTrendConfidence;
 
   const AirQualityData({
     required this.aqi,
@@ -145,6 +155,8 @@ class AirQualityData {
     required this.temperature,
     required this.humidity,
     required this.windSpeed,
+    this.aqiTrendDirection,
+    this.aqiTrendConfidence,
   });
 
   AqiLevel get level => getAqiLevel(aqi);
