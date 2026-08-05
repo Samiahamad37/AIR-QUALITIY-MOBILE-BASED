@@ -66,8 +66,9 @@ dependencies:
   csv: ^6.0.0
   path_provider: ^2.1.0
 
-  # Map coordinates
+  # Map coordinates & OpenStreetMap fallback (no Google API key required)
   latlong2: ^0.9.0
+  flutter_map: ^6.1.0
 
 dev_dependencies:
   flutter_test:

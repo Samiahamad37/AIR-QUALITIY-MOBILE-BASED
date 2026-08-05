@@ -10,7 +10,7 @@ import '/config/api_config.dart';
 
 Duration get _timeout => kDebugMode
     ? const Duration(seconds: 30)
-    : const Duration(seconds: 8);
+    : const Duration(seconds: 20);
 
 const List<String> allowedDevices = ['lands-building', 'planing-building'];
 const String defaultDevice = 'lands-building';
@@ -133,15 +133,34 @@ class AirQualityApiService {
   /// Returns 6-hour air quality forecast from backend (proxies to external API).
   /// Response: { sensors: { <sensor_name>: { current_aqi, trend_direction, trend_confidence, forecast_6h, pollutants, timestamp } } }
   Future<Map<String, dynamic>> fetchPredictions({String deviceId = defaultDevice}) async {
-    final data = await _get('/predict/all/');
+    Map<String, dynamic>? data;
+
+    try {
+      data = Map<String, dynamic>.from(await _get('/predict/all/') as Map);
+    } catch (_) {
+      try {
+        data = Map<String, dynamic>.from(
+          await _get('/predict/all/', null, '$apiOrigin/api') as Map,
+        );
+      } catch (_) {
+        data = await _fetchExternalJson(
+          'https://airquality-ai.tlms.live/api/predict/all',
+        );
+      }
+    }
+
+    if (data == null) {
+      throw ApiException(503, 'Forecast service unavailable');
+    }
+
     final sensors = data['sensors'] as Map<String, dynamic>?;
     final mappedDevice = _mapDeviceName(deviceId);
     final sensorData = sensors?[mappedDevice] as Map<String, dynamic>?;
-    
+
     if (sensorData == null) {
       throw ApiException(404, 'Sensor data not found for device: $deviceId');
     }
-    
+
     return Map<String, dynamic>.from(sensorData);
   }
 
@@ -170,36 +189,40 @@ class AirQualityApiService {
 //     throw ApiException(res.statusCode, res.reasonPhrase ?? 'Error');
 // }
   Future<Map<String, dynamic>> fetchRecommendations({int aqi = 0}) async {
-    try {
-      final data = await _get('/recommend/', {'aqi': '$aqi'});
-      return Map<String, dynamic>.from(data as Map);
-    } catch (_) {
-      // Fallback to external AI API if backend route unavailable.
+    final params = {'aqi': '$aqi'};
+
+    for (final root in [airQualityApiBaseUrl, '$apiOrigin/api']) {
       try {
-        final uri = Uri.parse('https://airquality-ai.tlms.live/api/recommend/')
-            .replace(queryParameters: {'aqi': '$aqi'});
-
-        debugPrint('>>> Requesting: $uri');
-
-        final res = await http
-            .get(uri, headers: {'Accept': 'application/json'})
-            .timeout(const Duration(seconds: 15));
-
-        debugPrint('>>> Response status: ${res.statusCode}');
-
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          final decoded = jsonDecode(res.body);
-          if (decoded is Map<String, dynamic>) return decoded;
-          return {};
-        }
-        throw ApiException(res.statusCode, res.reasonPhrase ?? 'Error');
-      } on ApiException {
-        rethrow;
-      } catch (e) {
-        debugPrint('>>> Request failed: $e');
-        return {};
+        final data = await _get('/recommend/', params, root);
+        return Map<String, dynamic>.from(data as Map);
+      } catch (_) {
+        // try next base URL
       }
     }
+
+    try {
+      final uri = Uri.parse('https://airquality-ai.tlms.live/api/recommend/')
+          .replace(queryParameters: params);
+      final data = await _fetchExternalJson(uri.toString());
+      if (data != null) return data;
+    } catch (e) {
+      debugPrint('>>> Recommend fallback failed: $e');
+    }
+
+    return {};
+  }
+
+  Future<Map<String, dynamic>?> _fetchExternalJson(String url) async {
+    debugPrint('>>> Requesting external: $url');
+    final res = await http
+        .get(Uri.parse(url), headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 20));
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+    }
+    return null;
   }
 
   // ── Sensor History ──────────────────────────────────────────────────────────

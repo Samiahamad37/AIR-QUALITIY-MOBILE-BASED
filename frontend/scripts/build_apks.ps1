@@ -56,7 +56,10 @@ function Build-Apk {
 
     Write-Host ">> Building $Flavor (API_HOST=$ApiHost)..." -ForegroundColor Green
 
-    # Use cached packages when offline; skip pub during build if deps already resolved.
+    Push-Location (Join-Path $FrontendRoot "android")
+    & .\gradlew.bat --stop 2>$null | Out-Null
+    Pop-Location
+
     & flutter pub get --offline 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "   (offline pub get failed, trying online...)" -ForegroundColor Yellow

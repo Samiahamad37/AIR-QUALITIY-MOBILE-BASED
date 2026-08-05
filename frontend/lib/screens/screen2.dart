@@ -32,6 +32,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
   List<Map<String, dynamic>> _forecast = [];
   List<Map<String, dynamic>> _dailyForecast = [];
   Map<String, dynamic>? _predictionData;
+  String? _forecastError;
 
   final List<String> _pollutants = ['co2', 'nox', 'voc', 'pm25', 'pm10'];
   final List<int> _hourOptions = [24, 48, 168];
@@ -46,30 +47,43 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   Future<void> _loadPollutantData() async {
     final service = context.read<SharedDataService>();
+    final deviceId = service.selectedDevice;
+
+    List<Map<String, dynamic>> history = [];
+    String? forecastError;
+    Map<String, dynamic>? predictionResponse;
+
     try {
-      final results = await Future.wait([
-        api.fetchPollutantHistory(
-          deviceId: service.selectedDevice,
-          pollutant: _selectedPollutant,
-          hours: _selectedHours,
-        ),
-        api.fetchPredictions(deviceId: service.selectedDevice),
-      ]);
-
-      final history = results[0] as List<Map<String, dynamic>>;
-      final predictionResponse = results[1] as Map<String, dynamic>;
-      final hourlyForecast = _buildHourlyForecastFromApi(predictionResponse);
-      final dailyForecast = _buildDailyForecastFromHourly(hourlyForecast);
-
-      setState(() {
-        _pollutantHistory = history;
-        _forecast = hourlyForecast;
-        _dailyForecast = dailyForecast;
-        _predictionData = predictionResponse;
-      });
+      history = await api.fetchPollutantHistory(
+        deviceId: deviceId,
+        pollutant: _selectedPollutant,
+        hours: _selectedHours,
+      );
     } catch (e) {
-      debugPrint('Failed to load pollutant data: $e');
+      forecastError = e.toString();
+      debugPrint('Failed to load pollutant history: $e');
     }
+
+    try {
+      predictionResponse = await api.fetchPredictions(deviceId: deviceId);
+    } catch (e) {
+      forecastError ??= e.toString();
+      debugPrint('Failed to load predictions: $e');
+    }
+
+    final hourlyForecast = predictionResponse != null
+        ? _buildHourlyForecastFromApi(predictionResponse)
+        : <Map<String, dynamic>>[];
+    final dailyForecast = _buildDailyForecastFromHourly(hourlyForecast);
+
+    if (!mounted) return;
+    setState(() {
+      _pollutantHistory = history;
+      _forecast = hourlyForecast;
+      _dailyForecast = dailyForecast;
+      _predictionData = predictionResponse;
+      _forecastError = forecastError;
+    });
   }
 
   List<Map<String, dynamic>> _buildHourlyForecastFromApi(
@@ -211,6 +225,30 @@ class _ForecastScreenState extends State<ForecastScreen> {
                               ),
 
                             // ── 6h Hourly Forecast ──────────────────────────
+                            if (_forecast.isEmpty && _forecastError != null)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.moderate.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AppColors.moderate.withOpacity(0.35),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      AppLocalizations.of(context).forecastMlNotice,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1.4,
+                                        color: context.palette.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             SliverToBoxAdapter(
                               child: SectionHeader(
                                   title: '6-Hour Forecast'),
