@@ -102,12 +102,6 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = service.currentData!;
         final level = data.level;
         final l10n = AppLocalizations.of(context);
-        final maxHourlyAqi = data.hourlyData.isEmpty
-            ? 1
-            : data.hourlyData
-                .map((h) => h.aqi)
-                .reduce((a, b) => a > b ? a : b)
-                .clamp(1, 500);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: context.appOverlayStyle,
@@ -121,44 +115,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 slivers: [
                   SliverToBoxAdapter(
                       child: _buildHero(context, data, level, service)),
-
-                  if (service.devices.length > 1)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        child: DropdownButtonFormField<String>(
-                          value: service.selectedDevice,
-                          dropdownColor: palette.card,
-                          style: TextStyle(color: palette.textPrimary),
-                          decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context).homeLocation,
-                            labelStyle:
-                                TextStyle(color: palette.textSecondary),
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: palette.border),
-                            ),
-                            filled: true,
-                            fillColor: palette.card,
-                          ),
-                          items: service.devices
-                              .map((d) => DropdownMenuItem(
-                                    value: d,
-                                    child: Text(deviceDisplayName(d),
-                                        style: TextStyle(
-                                            color: palette.textPrimary)),
-                                  ))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              service.setSelectedDevice(val);
-                            }
-                          },
-                        ),
-                      ),
-                    ),
 
                   // ─── Metrics Strip ────────────────────────────────────────
                   SliverToBoxAdapter(
@@ -194,51 +150,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   // ─── Today's AQI Trend ────────────────────────────────────
                   if (data.hourlyData.isNotEmpty) ...[
                     SliverToBoxAdapter(
-                      child: SectionHeader(title: AppLocalizations.of(context).homeTodayTrend),
+                      child: SectionHeader(
+                          title: AppLocalizations.of(context).homeTodayTrend),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: GlassCard(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                          child: SizedBox(
-                            height: 110,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children:
-                                  data.hourlyData.asMap().entries.map((e) {
-                                return HourlyChartBar(
-                                  data: e.value,
-                                  maxAqi: maxHourlyAqi,
-                                  delayMs: e.key * 20,
-                                );
-                              }).toList(),
-                            ),
-                          ),
+                          padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                          child: HomeTodayTrendChart(data: data.hourlyData),
                         ),
                       ),
                     ),
                   ],
-
-                  // ─── Pollutants Breakdown ─────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: SectionHeader(title: AppLocalizations.of(context).homePollutants),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GlassCard(
-                        child: Column(
-                          children: data.pollutants.asMap().entries.map((e) {
-                            return PollutantBar(
-                              pollutant: e.value,
-                              delayMs: e.key * 20,
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
 
                   // ─── Health Advisory ──────────────────────────────────────
                   SliverToBoxAdapter(
@@ -330,26 +254,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_rounded,
-                              size: 13, color: level.color),
-                          const SizedBox(width: 4),
-                          Text('Your Location',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: palette.textSecondary)),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
                       Text('Dar es Salaam',
                           style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
                               color: palette.textPrimary)),
-                      Text(data.district,
-                          style: TextStyle(
-                              fontSize: 12, color: palette.textSecondary)),
+                      Text(
+                        'Updated ${_timeAgo(data.updatedAt)}',
+                        style: TextStyle(fontSize: 11, color: palette.textMuted),
+                      ),
                     ],
                   ),
                   Row(
@@ -393,7 +306,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _locationPicker(context, service, l10n),
+            ),
+            const SizedBox(height: 18),
             AqiRing(aqi: data.aqi, size: 190),
             const SizedBox(height: 12),
             Container(
@@ -413,10 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(localizedAqiAdvice(l10n, data.aqi),
                 style: TextStyle(fontSize: 12, color: palette.textSecondary),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text('Updated ${_timeAgo(data.updatedAt)}',
-                style: TextStyle(fontSize: 11, color: palette.textMuted)),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: Row(
@@ -467,6 +382,53 @@ class _HomeScreenState extends State<HomeScreen> {
         width: 1,
         height: 28,
         color: context.palette.border.withOpacity(0.5));
+  }
+
+  Widget _locationPicker(
+    BuildContext context,
+    SharedDataService service,
+    AppLocalizations l10n,
+  ) {
+    final palette = context.palette;
+    return DropdownButtonFormField<String>(
+      value: service.selectedDevice,
+      dropdownColor: palette.card,
+      style: TextStyle(
+        color: palette.textPrimary,
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+      ),
+      decoration: InputDecoration(
+        labelText: l10n.homeLocation,
+        labelStyle: TextStyle(color: palette.textSecondary, fontSize: 12),
+        prefixIcon:
+            Icon(Icons.location_searching_rounded, color: palette.textSecondary),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: palette.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: AppColors.good, width: 1.5),
+        ),
+        filled: true,
+        fillColor: palette.cardLight,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+      items: (service.devices.isEmpty
+              ? [service.selectedDevice]
+              : service.devices)
+          .map((d) => DropdownMenuItem(
+                value: d,
+                child: Text(deviceDisplayName(d),
+                    style: TextStyle(color: palette.textPrimary)),
+              ))
+          .toList(),
+      onChanged: (val) {
+        if (val != null) service.setSelectedDevice(val);
+      },
+    );
   }
 
   String _timeAgo(DateTime dt) => formatTimeAgo(dt);
