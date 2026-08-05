@@ -21,14 +21,29 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.frontend"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    flavorDimensions += "env"
+    productFlavors {
+        create("production") {
+            dimension = "env"
+            resValue("string", "app_name", "AirWatch")
+        }
+        create("emulator") {
+            dimension = "env"
+            applicationIdSuffix = ".emulator"
+            resValue("string", "app_name", "AirWatch Emulator")
+        }
+        create("local") {
+            dimension = "env"
+            applicationIdSuffix = ".local"
+            resValue("string", "app_name", "AirWatch Local")
+        }
     }
 
     buildTypes {

@@ -8,7 +8,6 @@ import '/config/api_config.dart';
 // Release → production VM at 92.5.10.116
 // Override: flutter run --dart-define=API_HOST=192.168.x.x
 
-const String _apiRootUrl = 'https://airquality-ai.tlms.live/api';
 Duration get _timeout => kDebugMode
     ? const Duration(seconds: 30)
     : const Duration(seconds: 8);
@@ -37,8 +36,8 @@ class ApiException implements Exception {
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
 Future<dynamic> _get(String path,
-    [Map<String, String>? params, bool useRoot = false]) async {
-  final root = useRoot ? _apiRootUrl : airQualityApiBaseUrl;
+    [Map<String, String>? params, String? baseUrl]) async {
+  final root = baseUrl ?? airQualityApiBaseUrl;
   final uri = (params != null && params.isNotEmpty)
       ? Uri.parse('$root$path').replace(queryParameters: params)
       : Uri.parse('$root$path');
@@ -48,7 +47,7 @@ Future<dynamic> _get(String path,
     final res = await http
         .get(uri, headers: {'Accept': 'application/json'}).timeout(_timeout);
 
-    print('>>> Response status: ${res.statusCode}');
+    if (kDebugMode) print('>>> Response status: ${res.statusCode}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return jsonDecode(res.body);
@@ -63,7 +62,7 @@ Future<dynamic> _get(String path,
     throw ApiException(
         res.statusCode, body['detail'] ?? body['error'] ?? 'Unknown error');
   } catch (e) {
-    print('>>> Request failed: $e');
+    if (kDebugMode) print('>>> Request failed: $e');
     rethrow;
   }
 }
@@ -134,7 +133,7 @@ class AirQualityApiService {
   /// Returns 6-hour air quality forecast from backend (proxies to external API).
   /// Response: { sensors: { <sensor_name>: { current_aqi, trend_direction, trend_confidence, forecast_6h, pollutants, timestamp } } }
   Future<Map<String, dynamic>> fetchPredictions({String deviceId = defaultDevice}) async {
-    final data = await _get('/predict/all/', {}, false);
+    final data = await _get('/predict/all/');
     final sensors = data['sensors'] as Map<String, dynamic>?;
     final mappedDevice = _mapDeviceName(deviceId);
     final sensorData = sensors?[mappedDevice] as Map<String, dynamic>?;
@@ -172,7 +171,7 @@ class AirQualityApiService {
 // }
   Future<Map<String, dynamic>> fetchRecommendations({int aqi = 0}) async {
     try {
-      final data = await _get('/recommend/', {'aqi': '$aqi'}, false);
+      final data = await _get('/recommend/', {'aqi': '$aqi'});
       return Map<String, dynamic>.from(data as Map);
     } catch (_) {
       // Fallback to external AI API if backend route unavailable.
@@ -217,7 +216,7 @@ class AirQualityApiService {
       'hours': '$hours',
       if (limit != null) 'limit': '$limit',
     };
-    final data = await _get('/history/sensor/', params, true);
+    final data = await _get('/history/sensor/', params, '$apiOrigin/api');
     return Map<String, dynamic>.from(data as Map);
   }
   // ── Nearest Sensor ──────────────────────────────────────────────
@@ -230,7 +229,7 @@ class AirQualityApiService {
       'lat': '$lat',
       'lng': '$lng',
     };
-    final data = await _get('/sensors/nearest/', params, true);
+    final data = await _get('/sensors/nearest/', params, sensorsApiBaseUrl);
     return data;
   }
 

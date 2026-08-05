@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -138,7 +139,13 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     // Auto-detect nearest sensor on app launch
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SharedDataService>().detectNearestSensor();
+      final service = context.read<SharedDataService>();
+      if (!service.isLoading && service.currentData == null) {
+        service.loadData();
+      }
+      if (!kIsWeb) {
+        service.detectNearestSensor();
+      }
     });
   }
 

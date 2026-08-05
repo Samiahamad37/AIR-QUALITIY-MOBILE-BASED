@@ -1019,14 +1019,291 @@ abstract class AppLocalizations {
   /// Sign in button
   ///
   /// In en, this message translates to:
-  /// **'Ingia'**
+  /// **'Sign In'**
   String get signIn;
 
   /// Create account button
   ///
   /// In en, this message translates to:
-  /// **'Unda Akaunti'**
+  /// **'Create Account'**
   String get createAccount;
+
+  /// Register screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Join AirWatch'**
+  String get authJoinTitle;
+
+  /// Register screen subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Create an account to unlock personalized reports and analysis.'**
+  String get authJoinSubtitle;
+
+  /// Login screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back'**
+  String get authWelcomeTitle;
+
+  /// Login screen subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to view your air-quality reports and analysis.'**
+  String get authWelcomeSubtitle;
+
+  /// Username field label
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get authUsername;
+
+  /// Email field label
+  ///
+  /// In en, this message translates to:
+  /// **'Email address'**
+  String get authEmail;
+
+  /// Password field label
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get authPassword;
+
+  /// Confirm password field label
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get authConfirmPassword;
+
+  /// Username validation
+  ///
+  /// In en, this message translates to:
+  /// **'Username is required'**
+  String get authUsernameRequired;
+
+  /// Email validation empty
+  ///
+  /// In en, this message translates to:
+  /// **'Email is required'**
+  String get authEmailRequired;
+
+  /// Email validation format
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email'**
+  String get authEmailInvalid;
+
+  /// Password validation empty
+  ///
+  /// In en, this message translates to:
+  /// **'Password is required'**
+  String get authPasswordRequired;
+
+  /// Password validation length
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be at least 8 characters'**
+  String get authPasswordMinLength;
+
+  /// Confirm password validation empty
+  ///
+  /// In en, this message translates to:
+  /// **'Please confirm your password'**
+  String get authConfirmRequired;
+
+  /// Confirm password validation mismatch
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get authPasswordMismatch;
+
+  /// Register success snackbar
+  ///
+  /// In en, this message translates to:
+  /// **'Account created. You are now signed in!'**
+  String get authRegisterSuccess;
+
+  /// Login success snackbar
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back!'**
+  String get authWelcomeBack;
+
+  /// Register footer prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? '**
+  String get authAlreadyHaveAccount;
+
+  /// Login footer prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account? '**
+  String get authNoAccount;
+
+  /// Register link on login screen
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get authRegister;
+
+  /// AI advice panel title
+  ///
+  /// In en, this message translates to:
+  /// **'AI Health Insight'**
+  String get aiHealthInsight;
+
+  /// AI advice panel subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Personalized guidance from live sensor data'**
+  String get aiHealthSubtitle;
+
+  /// Collapse AI advice sections
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get aiShowLess;
+
+  /// Expand AI advice sections
+  ///
+  /// In en, this message translates to:
+  /// **'Show {count} more {count, plural, =1{section} other{sections}}'**
+  String aiShowMoreSections(int count);
+
+  /// Default AI advice section title
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get aiSummary;
+
+  /// Health screen data source label
+  ///
+  /// In en, this message translates to:
+  /// **'Data: {source}'**
+  String healthDataSource(String source);
+
+  /// Health screen last updated label
+  ///
+  /// In en, this message translates to:
+  /// **'Updated: {time}'**
+  String healthUpdatedAt(String time);
+
+  /// AQI abbreviation label
+  ///
+  /// In en, this message translates to:
+  /// **'AQI'**
+  String get healthAqiLabel;
+
+  /// AQI value and level in recommendation card
+  ///
+  /// In en, this message translates to:
+  /// **'AQI {aqi} · {level}'**
+  String healthAqiLevelLine(int aqi, String level);
+
+  /// Report screen greeting
+  ///
+  /// In en, this message translates to:
+  /// **'Hi {name},'**
+  String reportGreeting(String name);
+
+  /// Report screen greeting for guest
+  ///
+  /// In en, this message translates to:
+  /// **'Hi there,'**
+  String get reportGreetingGuest;
+
+  /// Device comparison loading
+  ///
+  /// In en, this message translates to:
+  /// **'Loading comparison…'**
+  String get reportLoadingComparison;
+
+  /// Empty device comparison state
+  ///
+  /// In en, this message translates to:
+  /// **'No device data available'**
+  String get reportNoDeviceData;
+
+  /// Device comparison hint
+  ///
+  /// In en, this message translates to:
+  /// **'Live AQI matches Home and Map · {period} avg shown below'**
+  String reportLiveAqiHint(String period);
+
+  /// Device comparison tap hint
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a station to view its report'**
+  String get reportTapStationReport;
+
+  /// No data label for a device
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get reportNoDataShort;
+
+  /// Selected device badge
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get reportActive;
+
+  /// Device stats line
+  ///
+  /// In en, this message translates to:
+  /// **'Live · {count} readings in {period} · avg {aqi}'**
+  String reportLiveStats(int count, String period, int aqi);
+
+  /// Latest reading timestamp
+  ///
+  /// In en, this message translates to:
+  /// **'Latest reading {time}'**
+  String reportLatestReading(String time);
+
+  /// Report analysis summary paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'Over the selected period the average AQI was {avg} ({level}), peaking at {max}. The dominant pollutant was {dominant}. {advice}'**
+  String reportSummary(
+      int avg, String level, int max, String dominant, String advice);
+
+  /// Pollutant table header
+  ///
+  /// In en, this message translates to:
+  /// **'Pollutant'**
+  String get reportPollutant;
+
+  /// Min table header
+  ///
+  /// In en, this message translates to:
+  /// **'Min'**
+  String get reportMin;
+
+  /// Max table header
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get reportMax;
+
+  /// Avg table header
+  ///
+  /// In en, this message translates to:
+  /// **'Avg'**
+  String get reportAvg;
+
+  /// Export failure message
+  ///
+  /// In en, this message translates to:
+  /// **'Error exporting report: {error}'**
+  String reportExportError(String error);
+
+  /// Chart tooltip for AQI
+  ///
+  /// In en, this message translates to:
+  /// **'AQI: {aqi}\n{level}'**
+  String reportAqiTooltip(int aqi, String level);
 
   /// Report analysis screen title
   ///
@@ -1189,6 +1466,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exporting...'**
   String get reportExporting;
+
+  /// Badge when report download finished
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete'**
+  String get reportDownloadReady;
+
+  /// PDF download success badge
+  ///
+  /// In en, this message translates to:
+  /// **'PDF report ready'**
+  String get reportDownloadPdfReady;
+
+  /// CSV download success badge
+  ///
+  /// In en, this message translates to:
+  /// **'CSV report ready'**
+  String get reportDownloadCsvReady;
 }
 
 class _AppLocalizationsDelegate

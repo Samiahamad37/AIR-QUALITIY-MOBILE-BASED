@@ -6,6 +6,7 @@ import '/services/shared_data_service.dart';
 import '/screens/app_theme.dart';
 import '/utils/device_labels.dart';
 import '/utils/time_utils.dart';
+import '/utils/aqi_localization.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 import 'map/map_models.dart';
 import 'map/map_layer_stub.dart'
@@ -86,10 +87,9 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
 
   String _mapErrorMessage(String error) {
     if (error.contains('TimeoutException')) {
-      return 'Could not reach the API in time. '
-          'Ensure the backend is running (py manage.py runserver 0.0.0.0:8000).';
+      return AppLocalizations.of(context).errorCannotReach;
     }
-    return error;
+    return AppLocalizations.of(context).errorCannotReach;
   }
 
   @override
@@ -331,11 +331,12 @@ class _DeviceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final l10n = AppLocalizations.of(context);
     final aqi = (aqiData?['aqi'] as num?)?.toInt() ?? 0;
     final level = getAqiLevel(aqi);
     final pollutants = aqiData?['pollutants'] as Map<String, dynamic>? ?? {};
     final environment = aqiData?['environment'] as Map<String, dynamic>? ?? {};
-    final category = aqiData?['category'] ?? level.name;
+    final category = localizedAqiName(l10n, aqi);
 
     return Container(
       padding: const EdgeInsets.all(16),

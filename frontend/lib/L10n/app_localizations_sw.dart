@@ -508,6 +508,170 @@ class AppLocalizationsSw extends AppLocalizations {
   String get createAccount => 'Unda Akaunti';
 
   @override
+  String get authJoinTitle => 'Jiunge na AirWatch';
+
+  @override
+  String get authJoinSubtitle =>
+      'Fungua akaunti ili kufungua ripoti na uchambuzi maalum.';
+
+  @override
+  String get authWelcomeTitle => 'Karibu tena';
+
+  @override
+  String get authWelcomeSubtitle =>
+      'Ingia ili kuona ripoti na uchambuzi wa ubora wa hewa.';
+
+  @override
+  String get authUsername => 'Jina la mtumiaji';
+
+  @override
+  String get authEmail => 'Anwani ya barua pepe';
+
+  @override
+  String get authPassword => 'Nenosiri';
+
+  @override
+  String get authConfirmPassword => 'Thibitisha nenosiri';
+
+  @override
+  String get authUsernameRequired => 'Jina la mtumiaji linahitajika';
+
+  @override
+  String get authEmailRequired => 'Barua pepe inahitajika';
+
+  @override
+  String get authEmailInvalid => 'Weka barua pepe halali';
+
+  @override
+  String get authPasswordRequired => 'Nenosiri linahitajika';
+
+  @override
+  String get authPasswordMinLength =>
+      'Nenosiri lazima liwe na angalau herufi 8';
+
+  @override
+  String get authConfirmRequired => 'Tafadhali thibitisha nenosiri lako';
+
+  @override
+  String get authPasswordMismatch => 'Manenosiri hayalingani';
+
+  @override
+  String get authRegisterSuccess => 'Akaunti imeundwa. Umeingia sasa!';
+
+  @override
+  String get authWelcomeBack => 'Karibu tena!';
+
+  @override
+  String get authAlreadyHaveAccount => 'Tayari una akaunti? ';
+
+  @override
+  String get authNoAccount => 'Huna akaunti? ';
+
+  @override
+  String get authRegister => 'Jisajili';
+
+  @override
+  String get aiHealthInsight => 'Maarifa ya Afya ya AI';
+
+  @override
+  String get aiHealthSubtitle => 'Mwongozo maalum kutoka kwa data ya vituo hai';
+
+  @override
+  String get aiShowLess => 'Onyesha kidogo';
+
+  @override
+  String aiShowMoreSections(int count) {
+    return 'Onyesha sehemu $count zaidi';
+  }
+
+  @override
+  String get aiSummary => 'Muhtasari';
+
+  @override
+  String healthDataSource(String source) {
+    return 'Data: $source';
+  }
+
+  @override
+  String healthUpdatedAt(String time) {
+    return 'Imesasishwa: $time';
+  }
+
+  @override
+  String get healthAqiLabel => 'AQI';
+
+  @override
+  String healthAqiLevelLine(int aqi, String level) {
+    return 'AQI $aqi · $level';
+  }
+
+  @override
+  String reportGreeting(String name) {
+    return 'Habari $name,';
+  }
+
+  @override
+  String get reportGreetingGuest => 'Habari,';
+
+  @override
+  String get reportLoadingComparison => 'Inapakia ulinganisho…';
+
+  @override
+  String get reportNoDeviceData => 'Hakuna data ya kifaa inayopatikana';
+
+  @override
+  String reportLiveAqiHint(String period) {
+    return 'AQI hai inalingana na Nyumbani na Ramani · wastani wa $period unaonyeshwa hapa chini';
+  }
+
+  @override
+  String get reportTapStationReport => 'Gusa kituo kuona ripoti yake';
+
+  @override
+  String get reportNoDataShort => 'Hakuna data';
+
+  @override
+  String get reportActive => 'Hai';
+
+  @override
+  String reportLiveStats(int count, String period, int aqi) {
+    return 'Hai · masomo $count katika $period · wastani $aqi';
+  }
+
+  @override
+  String reportLatestReading(String time) {
+    return 'Somo la hivi karibuni $time';
+  }
+
+  @override
+  String reportSummary(
+      int avg, String level, int max, String dominant, String advice) {
+    return 'Katika kipindi kilichochaguliwa wastani wa AQI ulikuwa $avg ($level), ukifikia kiwango cha juu cha $max. Kichafuzi kinachotawala kilikuwa $dominant. $advice';
+  }
+
+  @override
+  String get reportPollutant => 'Kichafuzi';
+
+  @override
+  String get reportMin => 'Chini';
+
+  @override
+  String get reportMax => 'Juu';
+
+  @override
+  String get reportAvg => 'Wast';
+
+  @override
+  String reportExportError(String error) {
+    return 'Hitilafu ya kuhamisha ripoti: $error';
+  }
+
+  @override
+  String reportAqiTooltip(int aqi, String level) {
+    return 'AQI: $aqi\n$level';
+  }
+
+  @override
   String get reportTitle => 'Ripoti na Uchambuzi';
 
   @override
@@ -587,4 +751,13 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get reportExporting => 'Inahamisha...';
+
+  @override
+  String get reportDownloadReady => 'Upakuaji umekamilika';
+
+  @override
+  String get reportDownloadPdfReady => 'Ripoti ya PDF iko tayari';
+
+  @override
+  String get reportDownloadCsvReady => 'CSV report ready';
 }

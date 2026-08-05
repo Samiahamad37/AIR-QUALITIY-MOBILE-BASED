@@ -43,7 +43,6 @@ class _Local extends ChangeNotifier {
   String region = 'TZ';
   String station = 'Lands Building';
   String aqiThreshold = '150 — Sensitive';
-  String refreshInterval = '5 min';
 
   void toggle(String k, bool v) {
     if (k == 'notifications') notifications = v;
@@ -56,7 +55,6 @@ class _Local extends ChangeNotifier {
     if (k == 'region') region = v;
     if (k == 'station') station = v;
     if (k == 'aqiThreshold') aqiThreshold = v;
-    if (k == 'refreshInterval') refreshInterval = v;
     notifyListeners();
   }
 
@@ -362,34 +360,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             },
                           ),
                         ),
-                        _Nav(
-                          ctx: ctx,
-                          icon: CupertinoIcons.refresh_circled_solid,
-                          iconBg: const Color(0xFF34C759),
-                          label:
-                              AppLocalizations.of(ctx).settingsRefreshInterval,
-                          value: _local.refreshInterval,
-                          onTap: () => _pick(
-                            ctx,
-                            title: AppLocalizations.of(ctx)
-                                .settingsRefreshInterval,
-                            options: const [
-                              '1 min',
-                              '2 min',
-                              '5 min',
-                              '10 min',
-                              '30 min'
-                            ],
-                            current: _local.refreshInterval,
-                            onSelect: (v) async {
-                              _local.set('refreshInterval', v);
-                              _snack(
-                                  ctx,
-                                  AppLocalizations.of(ctx)
-                                      .settingsRefreshSelected(v));
-                            },
-                          ),
-                        ),
                       ]),
 
                       const SizedBox(height: 28),
@@ -407,23 +377,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onTap: () => _openReports(ctx)),
                         _Nav(
                             ctx: ctx,
-                            icon: CupertinoIcons.shield_fill,
-                            iconBg: const Color(0xFF5856D6),
-                            label: AppLocalizations.of(ctx).settingsPrivacy,
-                            onTap: () => _privacyDialog(ctx)),
-                        _Nav(
-                            ctx: ctx,
                             icon: CupertinoIcons.question_circle_fill,
                             iconBg: const Color(0xFF32ADE6),
                             label: AppLocalizations.of(ctx).settingsHelp,
                             onTap: () => _helpDialog(ctx)),
-                        _Nav(
-                            ctx: ctx,
-                            icon: CupertinoIcons.star_fill,
-                            iconBg: const Color(0xFFFF9500),
-                            label: AppLocalizations.of(ctx).settingsRate,
-                            onTap: () => _snack(ctx,
-                                AppLocalizations.of(ctx).settingsRateThanks)),
                         if (auth.isLoggedIn)
                           _Nav(
                               ctx: ctx,
@@ -451,32 +408,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           );
         },
-      ),
-    );
-  }
-
-  void _privacyDialog(BuildContext c) {
-    showDialog(
-      context: c,
-      builder: (_) => AlertDialog(
-        backgroundColor: _card(c),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(AppLocalizations.of(c).settingsPrivacy,
-            style: TextStyle(color: _textMain(c), fontWeight: FontWeight.w700)),
-        content: Text(
-          'AirWatch collects location only to find the nearest sensor. '
-          'Sensor readings are stored on our servers for analysis. '
-          'We do not sell personal data. Account credentials are used '
-          'only for authentication and saved reports.',
-          style: TextStyle(color: _textSub(c), fontSize: 13, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: Text(AppLocalizations.of(c).settingsClose,
-                style: const TextStyle(color: _accent)),
-          ),
-        ],
       ),
     );
   }

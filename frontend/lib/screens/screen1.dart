@@ -7,6 +7,7 @@ import '/widgets/common_widget.dart';
 import '/services/shared_data_service.dart';
 import '/utils/device_labels.dart';
 import '/utils/time_utils.dart';
+import '/utils/aqi_localization.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 const String defaultDevice = 'lands-building';
@@ -26,8 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Consumer<SharedDataService>(
       builder: (context, service, _) {
-        // Show connection state indicator
-        if (service.connectionState != 'connected' && service.connectionState != 'disconnected') {
+        // Only block the home screen when we have no data yet.
+        if (service.currentData == null &&
+            service.connectionState != 'connected' &&
+            service.connectionState != 'disconnected') {
           return Scaffold(
             backgroundColor: bg,
             appBar: AppBar(
@@ -98,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final data = service.currentData!;
         final level = data.level;
+        final l10n = AppLocalizations.of(context);
         final maxHourlyAqi = data.hourlyData.isEmpty
             ? 1
             : data.hourlyData
@@ -206,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 return HourlyChartBar(
                                   data: e.value,
                                   maxAqi: maxHourlyAqi,
-                                  delayMs: e.key * 60,
+                                  delayMs: e.key * 20,
                                 );
                               }).toList(),
                             ),
@@ -228,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: data.pollutants.asMap().entries.map((e) {
                             return PollutantBar(
                               pollutant: e.value,
-                              delayMs: e.key * 80,
+                              delayMs: e.key * 20,
                             );
                           }).toList(),
                         ),
@@ -270,14 +274,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(level.shortName,
+                                  Text(localizedAqiName(l10n, data.aqi),
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                         color: level.textColor,
                                       )),
                                   const SizedBox(height: 3),
-                                  Text(level.advice,
+                                  Text(localizedAqiAdvice(l10n, data.aqi),
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: level.textColor.withOpacity(0.8),
@@ -399,14 +403,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(99),
                 border: Border.all(color: level.color.withOpacity(0.3)),
               ),
-              child: Text(level.name,
+              child: Text(localizedAqiName(l10n, data.aqi),
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: level.color)),
             ),
             const SizedBox(height: 6),
-            Text(_getLocalizedAdvice(data.aqi, l10n),
+            Text(localizedAqiAdvice(l10n, data.aqi),
                 style: TextStyle(fontSize: 12, color: palette.textSecondary),
                 textAlign: TextAlign.center),
             const SizedBox(height: 8),
@@ -466,15 +470,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _timeAgo(DateTime dt) => formatTimeAgo(dt);
-
-  String _getLocalizedAdvice(int aqi, AppLocalizations l10n) {
-    if (aqi <= 50) return l10n.aqiAdviceGood;
-    if (aqi <= 100) return l10n.aqiAdviceModerate;
-    if (aqi <= 150) return l10n.aqiAdviceSensitive;
-    if (aqi <= 200) return l10n.aqiAdviceUnhealthy;
-    if (aqi <= 300) return l10n.aqiAdviceVery;
-    return l10n.aqiAdviceHazardous;
-  }
 
   Widget _getConnectionStateIcon(String state) {
     switch (state) {

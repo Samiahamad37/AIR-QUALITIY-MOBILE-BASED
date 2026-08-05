@@ -4,9 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:csv/csv.dart';
-import 'dart:io';
+import 'dart:async';
+import 'dart:convert';
 import '/Data/air_quality_data.dart';
 import '/services/api_service.dart';
 import '/screens/app_theme.dart';
@@ -15,6 +15,8 @@ import '/services/shared_data_service.dart';
 import '/L10n/app_localizations.dart';
 import '/utils/device_labels.dart';
 import '/utils/time_utils.dart';
+import '/utils/report_exporter.dart';
+import '/utils/aqi_localization.dart';
 
 
 
@@ -37,11 +39,191 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   bool _isExportingPdf = false;
   bool _isExportingCsv = false;
   String? _trackedDevice;
+  String? _downloadSuccessFormat;
+  Timer? _downloadSuccessTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadAll());
+  }
+
+  void _showDownloadSuccess(String format) {
+    _downloadSuccessTimer?.cancel();
+    setState(() => _downloadSuccessFormat = format);
+    _downloadSuccessTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _downloadSuccessFormat = null);
+    });
+  }
+
+  String _reportFilename(String extension) {
+    final device = context.read<SharedDataService>().selectedDevice;
+    final stamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+    return 'air_quality_${device}_$_period$stamp.$extension'
+        .replaceAll(RegExp(r'[^\w.\-]+'), '_');
+  }
+
+  Future<List<int>> _buildPdfBytes() async {
+    final device = context.read<SharedDataService>().selectedDevice;
+    final deviceLabel = deviceDisplayName(device);
+    final pdf = pw.Document();
+    final aqis = _readings.map(_quickAqi).toList();
+    final avgAqi = aqis.isEmpty ? 0 : _avg(aqis).round();
+    final maxAqi = aqis.isEmpty ? 0 : aqis.reduce((a, b) => a > b ? a : b);
+    final minAqi = aqis.isEmpty ? 0 : aqis.reduce((a, b) => a < b ? a : b);
+    final level = getAqiLevel(avgAqi);
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Header(
+                level: 0,
+                title: 'Air Quality Report',
+                child: pw.Text('Air Quality Report'),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text('Device: $deviceLabel'),
+              pw.Text('Period: $_period'),
+              pw.Text(
+                'Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Summary Statistics',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text('Average AQI: $avgAqi (${level.name})'),
+              pw.Text('Maximum AQI: $maxAqi'),
+              pw.Text('Minimum AQI: $minAqi'),
+              pw.Text('Total Readings: ${_readings.length}'),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'AQI Level: ${level.name}',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+              pw.Text('Advice: ${level.advice}'),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<List<int>> _buildCsvBytes() async {
+    final device = context.read<SharedDataService>().selectedDevice;
+    final deviceLabel = deviceDisplayName(device);
+    final rows = <List<dynamic>>[
+      ['Air Quality Report'],
+      ['Device', deviceLabel],
+      ['Period', _period],
+      ['Generated', DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())],
+      [],
+      ['Summary Statistics'],
+      [
+        'Average AQI',
+        _readings.map(_quickAqi).isEmpty
+            ? 0
+            : _avg(_readings.map(_quickAqi)).round(),
+      ],
+      [
+        'Maximum AQI',
+        _readings.map(_quickAqi).isEmpty
+            ? 0
+            : _readings.map(_quickAqi).reduce((a, b) => a > b ? a : b),
+      ],
+      [
+        'Minimum AQI',
+        _readings.map(_quickAqi).isEmpty
+            ? 0
+            : _readings.map(_quickAqi).reduce((a, b) => a < b ? a : b),
+      ],
+      ['Total Readings', _readings.length],
+      [],
+      ['Timestamp', 'PM2.5', 'PM10', 'NOx', 'VOC', 'CO2', 'AQI'],
+    ];
+
+    for (final reading in _readings) {
+      rows.add([
+        reading['timestamp']?.toString() ?? '',
+        reading['pm25']?.toString() ?? '0',
+        reading['pm10']?.toString() ?? '0',
+        reading['nox']?.toString() ?? '0',
+        reading['voc']?.toString() ?? '0',
+        reading['co2']?.toString() ?? '0',
+        _quickAqi(reading),
+      ]);
+    }
+
+    return utf8.encode(const ListToCsvConverter().convert(rows));
+  }
+
+  Future<void> _exportPdf() async {
+    setState(() {
+      _isExportingPdf = true;
+      _downloadSuccessFormat = null;
+    });
+
+    try {
+      final bytes = await _buildPdfBytes();
+      final filename = _reportFilename('pdf');
+      await saveReportFile(filename: filename, bytes: bytes);
+      if (!mounted) return;
+      _showDownloadSuccess('pdf');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).reportExportError('$e'),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingPdf = false);
+    }
+  }
+
+  Future<void> _exportCsv() async {
+    setState(() {
+      _isExportingCsv = true;
+      _downloadSuccessFormat = null;
+    });
+
+    try {
+      final bytes = await _buildCsvBytes();
+      final filename = _reportFilename('csv');
+      await saveReportFile(filename: filename, bytes: bytes);
+      if (!mounted) return;
+      _showDownloadSuccess('csv');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).reportExportError('$e'),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingCsv = false);
+    }
+  }
+
+  bool get _isExporting => _isExportingPdf || _isExportingCsv;
+
+  bool get _canDownload => !_isLoading && _readings.isNotEmpty && !_isExporting;
+
+  @override
+  void dispose() {
+    _downloadSuccessTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadAll() async {
@@ -114,140 +296,6 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
     }
   }
 
-  Future<void> _exportPdf() async {
-    setState(() {
-      _isExportingPdf = true;
-    });
-    
-    try {
-      final device = context.read<SharedDataService>().selectedDevice;
-      
-      final pdf = pw.Document();
-      
-      // Calculate statistics
-      final aqis = _readings.map(_quickAqi).toList();
-      final avgAqi = aqis.isEmpty ? 0 : _avg(aqis).round();
-      final maxAqi = aqis.isEmpty ? 0 : aqis.reduce((a, b) => a > b ? a : b);
-      final minAqi = aqis.isEmpty ? 0 : aqis.reduce((a, b) => a < b ? a : b);
-      final level = getAqiLevel(avgAqi);
-      
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Header(
-                  level: 0,
-                  title: 'Air Quality Report',
-                  child: pw.Text('Air Quality Report'),
-                ),
-                pw.SizedBox(height: 20),
-                pw.Text('Device: $device'),
-                pw.Text('Period: $_period'),
-                pw.Text('Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}'),
-                pw.SizedBox(height: 20),
-                pw.Text('Summary Statistics', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 10),
-                pw.Text('Average AQI: $avgAqi (${level.name})'),
-                pw.Text('Maximum AQI: $maxAqi'),
-                pw.Text('Minimum AQI: $minAqi'),
-                pw.Text('Total Readings: ${_readings.length}'),
-                pw.SizedBox(height: 20),
-                pw.Text('AQI Level: ${level.name}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.Text('Advice: ${level.advice}'),
-              ],
-            );
-          },
-        ),
-      );
-      
-      final directory = await getApplicationDocumentsDirectory();
-      final path = '${directory.path}/air_quality_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File(path);
-      await file.writeAsBytes(await pdf.save());
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Report saved to $path')),
-      );
-    } catch (e) {
-      print('Error exporting PDF: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error exporting report: $e')),
-      );
-    } finally {
-      if (!mounted) return;
-      setState(() {
-        _isExportingPdf = false;
-      });
-    }
-  }
-
-  Future<void> _exportCsv() async {
-    setState(() {
-      _isExportingCsv = true;
-    });
-    
-    try {
-      final device = context.read<SharedDataService>().selectedDevice;
-      
-      // Create CSV data
-      final List<List<dynamic>> rows = [
-        ['Air Quality Report'],
-        ['Device', device],
-        ['Period', _period],
-        ['Generated', DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())],
-        [],
-        ['Summary Statistics'],
-        ['Average AQI', _readings.map(_quickAqi).isEmpty ? 0 : _avg(_readings.map(_quickAqi)).round()],
-        ['Maximum AQI', _readings.map(_quickAqi).isEmpty ? 0 : _readings.map(_quickAqi).reduce((a, b) => a > b ? a : b)],
-        ['Minimum AQI', _readings.map(_quickAqi).isEmpty ? 0 : _readings.map(_quickAqi).reduce((a, b) => a < b ? a : b)],
-        ['Total Readings', _readings.length],
-        [],
-        ['Timestamp', 'PM2.5', 'PM10', 'NOx', 'VOC', 'CO2', 'AQI'],
-      ];
-      
-      // Add reading data
-      for (final reading in _readings) {
-        rows.add([
-          reading['timestamp']?.toString() ?? '',
-          reading['pm25']?.toString() ?? '0',
-          reading['pm10']?.toString() ?? '0',
-          reading['nox']?.toString() ?? '0',
-          reading['voc']?.toString() ?? '0',
-          reading['co2']?.toString() ?? '0',
-          _quickAqi(reading),
-        ]);
-      }
-      
-      final csvData = const ListToCsvConverter().convert(rows);
-      
-      final directory = await getApplicationDocumentsDirectory();
-      final path = '${directory.path}/air_quality_report_${DateTime.now().millisecondsSinceEpoch}.csv';
-      final file = File(path);
-      await file.writeAsString(csvData);
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Report saved to $path')),
-      );
-    } catch (e) {
-      print('Error exporting CSV: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error exporting report: $e')),
-      );
-    } finally {
-      if (!mounted) return;
-      setState(() {
-        _isExportingCsv = false;
-      });
-    }
-  }
-
   // ── AQI helpers (consistent with SharedDataService) ──────────────────────────
 
   int _quickAqi(Map<String, dynamic> r) {
@@ -284,38 +332,6 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
         foregroundColor: palette.textPrimary,
         actions: [
           IconButton(
-            icon: _isExportingPdf
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.good,
-                    ),
-                  )
-                : const Icon(Icons.picture_as_pdf_rounded),
-            onPressed: _isExportingPdf || _isExportingCsv || _isLoading || _readings.isEmpty
-                ? null
-                : _exportPdf,
-            tooltip: l10n.reportExportPdf,
-          ),
-          IconButton(
-            icon: _isExportingCsv
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.good,
-                    ),
-                  )
-                : const Icon(Icons.table_view_rounded),
-            onPressed: _isExportingCsv || _isExportingPdf || _isLoading || _readings.isEmpty
-                ? null
-                : _exportCsv,
-            tooltip: l10n.reportExportCsv,
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _isLoading && _isLoadingComparison ? null : _loadAll,
             tooltip: l10n.errorRetry,
@@ -335,6 +351,8 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                 _greeting(palette, auth),
                 const SizedBox(height: 16),
                 _periodSelector(palette),
+                const SizedBox(height: 16),
+                _downloadSection(palette, l10n),
                 const SizedBox(height: 20),
                 if (_isLoading)
                   const Padding(
@@ -368,7 +386,9 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Hi ${auth.username ?? 'there'},',
+          auth.username != null
+              ? l10n.reportGreeting(auth.username!)
+              : l10n.reportGreetingGuest,
           style: TextStyle(
             fontSize: 15,
             color: palette.textSecondary,
@@ -385,6 +405,132 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _downloadSection(AppPalette palette, AppLocalizations l10n) {
+    final successLabel = _downloadSuccessFormat == 'pdf'
+        ? l10n.reportDownloadPdfReady
+        : _downloadSuccessFormat == 'csv'
+            ? l10n.reportDownloadCsvReady
+            : null;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: palette.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: successLabel != null
+              ? AppColors.good.withOpacity(0.5)
+              : palette.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.download_rounded, color: palette.textPrimary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.reportExport,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
+                ),
+              ),
+              if (successLabel != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.good.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: AppColors.good.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_rounded,
+                          color: AppColors.good, size: 14),
+                      const SizedBox(width: 5),
+                      Text(
+                        successLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.good,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          if (_isExporting) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.good,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  l10n.reportExporting,
+                  style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _canDownload && !_isExportingCsv ? _exportPdf : null,
+                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                  label: Text(l10n.reportExportPdf),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.good,
+                    side: BorderSide(
+                      color: _canDownload
+                          ? AppColors.good.withOpacity(0.5)
+                          : palette.border,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _canDownload && !_isExportingPdf ? _exportCsv : null,
+                  icon: const Icon(Icons.table_view_rounded, size: 18),
+                  label: Text(l10n.reportExportCsv),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.good,
+                    side: BorderSide(
+                      color: _canDownload
+                          ? AppColors.good.withOpacity(0.5)
+                          : palette.border,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -485,7 +631,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _statCard(palette, l10n.reportAverageAqi, '$avg',
-                  level.shortName, level.color),
+                  localizedAqiName(l10n, avg), level.color),
             ),
           ],
         ),
@@ -494,12 +640,12 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
           children: [
             Expanded(
               child: _statCard(palette, l10n.reportBestDay, '$min',
-                  getAqiLevel(min).shortName, getAqiLevel(min).color),
+                  localizedAqiName(l10n, min), getAqiLevel(min).color),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _statCard(palette, l10n.reportWorstDay, '$max',
-                  getAqiLevel(max).shortName, getAqiLevel(max).color),
+                  localizedAqiName(l10n, max), getAqiLevel(max).color),
             ),
           ],
         ),
@@ -550,6 +696,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   }
 
   Widget _chartCard(AppPalette palette) {
+    final l10n = AppLocalizations.of(context);
     final ordered = _readings.reversed.toList();
     final spots = ordered.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), _quickAqi(e.value).toDouble());
@@ -639,9 +786,8 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((spot) {
                   final aqi = spot.y.toInt();
-                  final level = getAqiLevel(aqi);
                   return LineTooltipItem(
-                    'AQI: $aqi\n${level.name}',
+                    l10n.reportAqiTooltip(aqi, localizedAqiName(l10n, aqi)),
                     TextStyle(
                       color: palette.textPrimary,
                       fontWeight: FontWeight.w600,
@@ -663,6 +809,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   }
 
   Widget _pollutantCard(AppPalette palette, Map<String, double> averages) {
+    final l10n = AppLocalizations.of(context);
     const maxSafe = <String, double>{
       'PM2.5': 35,
       'PM10': 150,
@@ -679,15 +826,23 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
     };
 
     // Calculate min/max for each pollutant
+    const apiKeys = {
+      'PM2.5': 'pm25',
+      'PM10': 'pm10',
+      'CO2': 'co2',
+      'NOx': 'nox',
+      'VOC': 'voc',
+    };
     final pollutantStats = <String, Map<String, double>>{};
-    for (var pollutant in ['PM2.5', 'PM10', 'CO2', 'NOx', 'VOC']) {
-      final key = pollutant.toLowerCase();
-      final values = _readings.map((r) => (r[key] as num?)?.toDouble() ?? 0).toList();
+    for (final entry in apiKeys.entries) {
+      final values = _readings
+          .map((r) => (r[entry.value] as num?)?.toDouble() ?? 0)
+          .toList();
       if (values.isNotEmpty) {
-        pollutantStats[pollutant] = {
+        pollutantStats[entry.key] = {
           'min': values.reduce((a, b) => a < b ? a : b),
           'max': values.reduce((a, b) => a > b ? a : b),
-          'avg': averages[pollutant] ?? 0,
+          'avg': averages[entry.key] ?? 0,
         };
       }
     }
@@ -769,10 +924,10 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                     ),
                   ),
                   children: [
-                    _tableCell('Pollutant', palette.textPrimary, true),
-                    _tableCell('Min', palette.textSecondary, true),
-                    _tableCell('Max', palette.textSecondary, true),
-                    _tableCell('Avg', palette.textSecondary, true),
+                    _tableCell(l10n.reportPollutant, palette.textPrimary, true),
+                    _tableCell(l10n.reportMin, palette.textSecondary, true),
+                    _tableCell(l10n.reportMax, palette.textSecondary, true),
+                    _tableCell(l10n.reportAvg, palette.textSecondary, true),
                   ],
                 ),
                 ...pollutantStats.entries.map((entry) {
@@ -899,6 +1054,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
 
   Widget _deviceComparisonCard(AppPalette palette, String selectedDevice) {
     final shared = context.watch<SharedDataService>();
+    final l10n = AppLocalizations.of(context);
 
     if (_isLoadingComparison && _deviceReadings.isEmpty) {
       return Container(
@@ -921,7 +1077,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
             ),
             const SizedBox(width: 12),
             Text(
-              'Loading comparison…',
+              l10n.reportLoadingComparison,
               style: TextStyle(fontSize: 13, color: palette.textSecondary),
             ),
           ],
@@ -943,7 +1099,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
             Icon(Icons.devices_rounded, color: palette.textMuted, size: 32),
             const SizedBox(height: 12),
             Text(
-              'No device data available',
+              l10n.reportNoDeviceData,
               style: TextStyle(
                 fontSize: 13,
                 color: palette.textSecondary,
@@ -983,12 +1139,12 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Live AQI matches Home and Map · $_period avg shown below',
+            l10n.reportLiveAqiHint(_period),
             style: TextStyle(fontSize: 11, color: palette.textMuted),
           ),
           const SizedBox(height: 4),
           Text(
-            'Tap a station to view its report',
+            l10n.reportTapStationReport,
             style: TextStyle(fontSize: 11, color: palette.textMuted),
           ),
           const SizedBox(height: 12),
@@ -1027,7 +1183,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                         ),
                       ),
                       Text(
-                        'No data',
+                        l10n.reportNoDataShort,
                         style: TextStyle(
                           fontSize: 11,
                           color: palette.textSecondary,
@@ -1100,9 +1256,9 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                                         color: AppColors.good.withOpacity(0.15),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Text(
-                                        'Active',
-                                        style: TextStyle(
+                                      child: Text(
+                                        l10n.reportActive,
+                                        style: const TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.good,
@@ -1114,7 +1270,11 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Live · ${stats['count']} readings in $_period · avg $avgAqi',
+                                l10n.reportLiveStats(
+                                  stats['count'] as int,
+                                  _period,
+                                  avgAqi,
+                                ),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: palette.textSecondary,
@@ -1122,7 +1282,9 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                               ),
                               if (stats['updated'] != null)
                                 Text(
-                                  'Latest reading ${stats['updated']}',
+                                  l10n.reportLatestReading(
+                                    stats['updated'] as String,
+                                  ),
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: palette.textMuted,
@@ -1144,7 +1306,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
                               ),
                             ),
                             Text(
-                              liveLevel.shortName,
+                              localizedAqiName(l10n, liveAqi),
                               style: TextStyle(
                                 fontSize: 10,
                                 color: palette.textMuted,
@@ -1171,6 +1333,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
     AqiLevel level,
     Map<String, double> averages,
   ) {
+    final l10n = AppLocalizations.of(context);
     final dominant = averages.entries
         .map((e) => MapEntry(
             e.key,
@@ -1186,9 +1349,13 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
         .reduce((a, b) => a.value > b.value ? a : b)
         .key;
 
-    final summary =
-        'Over the selected period the average AQI was $avg (${level.name}), '
-        'peaking at $max. The dominant pollutant was $dominant. ${level.advice}';
+    final summary = l10n.reportSummary(
+      avg,
+      localizedAqiName(l10n, avg),
+      max,
+      dominant,
+      localizedAqiAdvice(l10n, avg),
+    );
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1207,7 +1374,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  level.name,
+                  localizedAqiName(l10n, avg),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

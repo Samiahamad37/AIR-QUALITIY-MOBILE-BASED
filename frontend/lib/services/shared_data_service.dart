@@ -14,7 +14,7 @@ import '/screens/app_theme.dart';
 /// All screens subscribe to this service to stay in sync.
 class SharedDataService extends ChangeNotifier {
   static const _prefDevice = 'default_sensor_device';
-  static const _refreshInterval = Duration(seconds: 60);
+  static const _refreshInterval = Duration(seconds: 20);
 
   String _selectedDevice = defaultDevice;
   List<String> _devices = [];
@@ -44,7 +44,7 @@ class SharedDataService extends ChangeNotifier {
       _deviceAqiCache ??= <String, Map<String, dynamic>>{};
 
   SharedDataService() {
-    _loadPreferences();
+    _loadPreferences().then((_) => loadData(background: true));
     _startAutoRefresh();
   }
 
@@ -153,15 +153,17 @@ class SharedDataService extends ChangeNotifier {
 
       await _refreshDeviceAqiCache(devices);
 
-      final results = await Future.wait([
-        api.fetchDeviceAqi(deviceId: _selectedDevice),
-        api.fetchDeviceReadings(deviceId: _selectedDevice, hours: 24),
-      ]);
-      final aqiMap = Map<String, dynamic>.from(results[0] as Map);
-      final readingsList =
-          List<Map<String, dynamic>>.from(results[1] as List);
-
+      final cachedAqi = _cache[_selectedDevice];
+      final aqiMap = cachedAqi != null
+          ? Map<String, dynamic>.from(cachedAqi)
+          : Map<String, dynamic>.from(
+              await api.fetchDeviceAqi(deviceId: _selectedDevice),
+            );
       _cache[_selectedDevice] = aqiMap;
+
+      final readingsList = List<Map<String, dynamic>>.from(
+        await api.fetchDeviceReadings(deviceId: _selectedDevice, hours: 24),
+      );
 
       final pollutants =
           Map<String, dynamic>.from(aqiMap['pollutants'] as Map? ?? {});
@@ -247,10 +249,17 @@ class SharedDataService extends ChangeNotifier {
     _selectedDevice = deviceId;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefDevice, deviceId);
-    await loadData();
+    await loadData(background: _cache.containsKey(deviceId));
   }
 
   Future<void> detectNearestSensor() async {
+    if (kIsWeb) {
+      await loadData(background: true);
+      _connectionState = 'connected';
+      notifyListeners();
+      return;
+    }
+
     _connectionState = 'searching';
     notifyListeners();
 

@@ -25,6 +25,7 @@ class ForecastScreen extends StatefulWidget {
 class _ForecastScreenState extends State<ForecastScreen> {
   String _selectedPollutant = 'co2';
   int _selectedHours = 24;
+  String? _trackedDevice;
 
   // Real data from API
   List<Map<String, dynamic>> _pollutantHistory = [];
@@ -135,6 +136,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
   Widget build(BuildContext context) {
     return Consumer<SharedDataService>(
       builder: (context, service, _) {
+        if (_trackedDevice != service.selectedDevice) {
+          _trackedDevice = service.selectedDevice;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _loadPollutantData();
+          });
+        }
+
         final palette = context.palette;
         final bg = Theme.of(context).scaffoldBackgroundColor;
 

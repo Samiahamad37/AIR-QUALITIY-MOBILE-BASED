@@ -9,6 +9,8 @@ import '/widgets/common_widget.dart';
 import '/widgets/ai_advice_panel.dart';
 import '/L10n/app_localizations.dart';
 import '/services/shared_data_service.dart';
+import '/utils/health_recommendations.dart';
+import '/utils/aqi_localization.dart';
 
 // Group Model
 
@@ -78,10 +80,10 @@ class _HealthScreenState extends State<HealthScreen> {
     return fromCurrent ?? 0;
   }
 
-  Map<String, List<String>> _recsForAqi(int aqi) {
+  Map<String, List<String>> _recsForAqi(int aqi, String languageCode) {
     final recs = <String, List<String>>{};
     for (final groupId in _activeGroups) {
-      recs[groupId] = _getRecsForGroup(groupId, aqi);
+      recs[groupId] = healthRecsForGroup(languageCode, groupId, aqi);
     }
     return recs;
   }
@@ -132,166 +134,6 @@ class _HealthScreenState extends State<HealthScreen> {
     await _refreshAiAdvice(_resolveAqi(service));
   }
 
-  List<String> _getRecsForGroup(String groupId, int aqi) {
-    if (aqi <= 50) {
-      return {
-            'general': [
-              'Air quality is satisfactory.',
-              'Enjoy outdoor activities freely.',
-              'Open windows for fresh air.'
-            ],
-            'children': ['Safe for outdoor play.', 'No restrictions needed.'],
-            'elderly': [
-              'Safe for outdoor walks.',
-              'Normal activities recommended.'
-            ],
-            'pregnant': [
-              'Safe for light outdoor activity.',
-              'Fresh air is beneficial.'
-            ],
-            'asthma': [
-              'Low risk today.',
-              'Keep rescue inhaler handy as always.'
-            ],
-            'outdoor_workers': ['Safe working conditions.', 'Stay hydrated.'],
-          }[groupId] ??
-          ['No specific guidance needed.'];
-    } else if (aqi <= 100) {
-      return {
-            'general': [
-              'Air quality is acceptable.',
-              'Unusually sensitive people should limit prolonged outdoor exertion.'
-            ],
-            'children': [
-              'Outdoor play is generally safe.',
-              'Watch for any unusual symptoms.'
-            ],
-            'elderly': [
-              'Light outdoor activity is fine.',
-              'Avoid prolonged strenuous exercise.'
-            ],
-            'pregnant': [
-              'Light walks are safe.',
-              'Avoid heavy outdoor exertion.'
-            ],
-            'asthma': [
-              'Monitor symptoms closely.',
-              'Limit prolonged outdoor exertion.',
-              'Keep inhaler accessible.'
-            ],
-            'outdoor_workers': [
-              'Take regular breaks indoors.',
-              'Stay hydrated throughout the day.'
-            ],
-          }[groupId] ??
-          ['Limit prolonged outdoor activity.'];
-    } else if (aqi <= 150) {
-      return {
-            'general': [
-              'Sensitive groups should reduce outdoor activity.',
-              'Others can continue normal activities.'
-            ],
-            'children': [
-              'Reduce prolonged outdoor exertion.',
-              'Avoid outdoor sports.',
-              'Keep outdoor time short.'
-            ],
-            'elderly': [
-              'Limit outdoor activity.',
-              'Stay indoors during peak hours.',
-              'Monitor for breathing difficulty.'
-            ],
-            'pregnant': [
-              'Reduce outdoor activity.',
-              'Avoid areas with heavy traffic.',
-              'Consult doctor if concerned.'
-            ],
-            'asthma': [
-              'Avoid outdoor exertion.',
-              'Use air purifier indoors.',
-              'Have rescue medication ready.',
-              'Seek medical help if symptoms worsen.'
-            ],
-            'outdoor_workers': [
-              'Wear N95 mask.',
-              'Increase rest breaks.',
-              'Move heavy tasks indoors if possible.'
-            ],
-          }[groupId] ??
-          ['Sensitive groups should take precautions.'];
-    } else if (aqi <= 200) {
-      return {
-            'general': [
-              'Everyone should reduce prolonged outdoor exertion.',
-              'Take more breaks during outdoor activities.',
-              'Wear a mask outdoors.'
-            ],
-            'children': [
-              'Avoid all outdoor exertion.',
-              'Cancel outdoor sports.',
-              'Keep windows closed.'
-            ],
-            'elderly': [
-              'Stay indoors.',
-              'Run air purifier.',
-              'Avoid all strenuous activity.'
-            ],
-            'pregnant': [
-              'Stay indoors as much as possible.',
-              'Use air purifier.',
-              'Contact doctor if experiencing symptoms.'
-            ],
-            'asthma': [
-              'Stay indoors.',
-              'Use air purifier on high.',
-              'Avoid all outdoor activity.',
-              'Have emergency contacts ready.'
-            ],
-            'outdoor_workers': [
-              'Wear N95/KN95 mask at all times.',
-              'Request to work indoors.',
-              'Limit outdoor exposure to minimum.'
-            ],
-          }[groupId] ??
-          ['Reduce outdoor activity significantly.'];
-    } else {
-      return {
-            'general': [
-              'Avoid all outdoor activity.',
-              'Stay indoors with windows closed.',
-              'Use air purifier if available.'
-            ],
-            'children': [
-              'Do not go outside.',
-              'Keep all windows and doors closed.',
-              'Use HEPA air purifier.'
-            ],
-            'elderly': [
-              'Emergency conditions.',
-              'Stay indoors immediately.',
-              'Seek medical help if experiencing symptoms.'
-            ],
-            'pregnant': [
-              'Stay indoors immediately.',
-              'Call doctor if experiencing any symptoms.',
-              'Use air purifier.'
-            ],
-            'asthma': [
-              'Do not go outside under any circumstances.',
-              'Use air purifier on maximum.',
-              'Have emergency medications ready.',
-              'Call doctor proactively.'
-            ],
-            'outdoor_workers': [
-              'Stop all outdoor work immediately.',
-              'Evacuate to indoor shelter.',
-              'Seek medical attention if symptomatic.'
-            ],
-          }[groupId] ??
-          ['Emergency conditions. Stay indoors immediately.'];
-    }
-  }
-
   void _toggleGroup(String id) {
     setState(() {
       if (_activeGroups.contains(id)) {
@@ -307,7 +149,8 @@ class _HealthScreenState extends State<HealthScreen> {
     final service = context.watch<SharedDataService>();
     final aqi = _resolveAqi(service);
     final level = getAqiLevel(aqi);
-    final recs = _recsForAqi(aqi);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final recs = _recsForAqi(aqi, languageCode);
 
     if (service.lastUpdated != null &&
         _lastUpdated == null &&
@@ -316,6 +159,31 @@ class _HealthScreenState extends State<HealthScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _refreshAiAdvice(aqi);
       });
+    }
+
+    if (aqi <= 0 && (service.isLoading || service.isRefreshing)) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: context.appOverlayStyle,
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.good,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  AppLocalizations.of(context).loadingFetching,
+                  style: TextStyle(color: context.palette.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     return _buildContent(
@@ -454,6 +322,7 @@ class _HealthScreenState extends State<HealthScreen> {
     SharedDataService service,
   ) {
     final palette = context.palette;
+    final l10n = AppLocalizations.of(context);
     final updatedLabel = _lastUpdated ?? service.lastUpdated;
     return Container(
       decoration: BoxDecoration(
@@ -478,13 +347,17 @@ class _HealthScreenState extends State<HealthScreen> {
                         color: palette.textPrimary)),
                 const SizedBox(height: 4),
                 Row(children: [
-                  Text('Data: airquality-ai.tlms.live',
+                  Text(l10n.healthDataSource('airquality-ai.tlms.live'),
                       style: TextStyle(
                           fontSize: 11, color: palette.textSecondary)),
                   const SizedBox(width: 8),
                   if (updatedLabel != null)
                     Text(
-                        'Updated: ${updatedLabel.toLocal().toString().split(".").first}',
+                        l10n.healthUpdatedAt(updatedLabel
+                            .toLocal()
+                            .toString()
+                            .split('.')
+                            .first),
                         style: TextStyle(
                             fontSize: 11, color: palette.textSecondary)),
                 ])
@@ -530,7 +403,7 @@ class _HealthScreenState extends State<HealthScreen> {
                           height: 1)),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10, left: 6),
-                    child: Text('AQI',
+                    child: Text(l10n.healthAqiLabel,
                         style: TextStyle(
                             fontSize: 14,
                             color: palette.textSecondary,
@@ -546,7 +419,7 @@ class _HealthScreenState extends State<HealthScreen> {
                     borderRadius: BorderRadius.circular(99),
                     border: Border.all(color: level.color.withOpacity(0.3)),
                   ),
-                  child: Text(level.name,
+                  child: Text(localizedAqiName(l10n, aqi),
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -596,7 +469,7 @@ class _HealthScreenState extends State<HealthScreen> {
                     size: 16, color: level.textColor),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(level.advice,
+                  child: Text(localizedAqiAdvice(l10n, aqi),
                       style: TextStyle(
                           fontSize: 12, color: level.textColor, height: 1.4)),
                 ),
@@ -751,6 +624,7 @@ class _RecCardState extends State<_RecCard>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return FadeTransition(
       opacity: _fade,
       child: SlideTransition(
@@ -794,7 +668,11 @@ class _RecCardState extends State<_RecCard>
                                 fontWeight: FontWeight.w700,
                                 color: widget.level.textColor)),
                         const SizedBox(height: 1),
-                        Text('AQI ${widget.aqi} · ${widget.level.shortName}',
+                        Text(
+                            l10n.healthAqiLevelLine(
+                              widget.aqi,
+                              localizedAqiName(l10n, widget.aqi),
+                            ),
                             style: TextStyle(
                                 fontSize: 11,
                                 color:

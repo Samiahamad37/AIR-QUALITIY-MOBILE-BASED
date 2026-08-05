@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/screens/app_theme.dart';
 import '/utils/advice_formatter.dart';
+import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 class AiAdvicePanel extends StatefulWidget {
   final String advice;
@@ -40,7 +41,14 @@ class _AiAdvicePanelState extends State<AiAdvicePanel> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final sections = parseAdviceSections(widget.advice);
+    final l10n = AppLocalizations.of(context);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final sections = parseAdviceSections(widget.advice).map((section) {
+      final localizedTitle = section.title.toLowerCase() == 'summary'
+          ? l10n.aiSummary
+          : localizedAdviceTitle(languageCode, section.title);
+      return AdviceSection(title: localizedTitle, body: section.body);
+    }).toList();
     if (sections.isEmpty) return const SizedBox.shrink();
 
     final visible = _expanded ? sections : sections.take(2).toList();
@@ -70,7 +78,7 @@ class _AiAdvicePanelState extends State<AiAdvicePanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'AI Health Insight',
+                    l10n.aiHealthInsight,
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
@@ -79,7 +87,7 @@ class _AiAdvicePanelState extends State<AiAdvicePanel> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Personalized guidance from live sensor data',
+                    l10n.aiHealthSubtitle,
                     style: TextStyle(
                       fontSize: 12,
                       color: palette.textSecondary,
@@ -130,8 +138,8 @@ class _AiAdvicePanelState extends State<AiAdvicePanel> {
               ),
               label: Text(
                 _expanded
-                    ? 'Show less'
-                    : 'Show $hiddenCount more section${hiddenCount == 1 ? '' : 's'}',
+                    ? l10n.aiShowLess
+                    : l10n.aiShowMoreSections(hiddenCount),
               ),
             ),
           ),

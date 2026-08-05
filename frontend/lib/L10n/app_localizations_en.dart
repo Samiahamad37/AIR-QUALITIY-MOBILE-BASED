@@ -504,10 +504,179 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthRetry => 'Retry';
 
   @override
-  String get signIn => 'Ingia';
+  String get signIn => 'Sign In';
 
   @override
-  String get createAccount => 'Unda Akaunti';
+  String get createAccount => 'Create Account';
+
+  @override
+  String get authJoinTitle => 'Join AirWatch';
+
+  @override
+  String get authJoinSubtitle =>
+      'Create an account to unlock personalized reports and analysis.';
+
+  @override
+  String get authWelcomeTitle => 'Welcome back';
+
+  @override
+  String get authWelcomeSubtitle =>
+      'Sign in to view your air-quality reports and analysis.';
+
+  @override
+  String get authUsername => 'Username';
+
+  @override
+  String get authEmail => 'Email address';
+
+  @override
+  String get authPassword => 'Password';
+
+  @override
+  String get authConfirmPassword => 'Confirm password';
+
+  @override
+  String get authUsernameRequired => 'Username is required';
+
+  @override
+  String get authEmailRequired => 'Email is required';
+
+  @override
+  String get authEmailInvalid => 'Enter a valid email';
+
+  @override
+  String get authPasswordRequired => 'Password is required';
+
+  @override
+  String get authPasswordMinLength => 'Password must be at least 8 characters';
+
+  @override
+  String get authConfirmRequired => 'Please confirm your password';
+
+  @override
+  String get authPasswordMismatch => 'Passwords do not match';
+
+  @override
+  String get authRegisterSuccess => 'Account created. You are now signed in!';
+
+  @override
+  String get authWelcomeBack => 'Welcome back!';
+
+  @override
+  String get authAlreadyHaveAccount => 'Already have an account? ';
+
+  @override
+  String get authNoAccount => 'Don\'t have an account? ';
+
+  @override
+  String get authRegister => 'Register';
+
+  @override
+  String get aiHealthInsight => 'AI Health Insight';
+
+  @override
+  String get aiHealthSubtitle => 'Personalized guidance from live sensor data';
+
+  @override
+  String get aiShowLess => 'Show less';
+
+  @override
+  String aiShowMoreSections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'sections',
+      one: 'section',
+    );
+    return 'Show $count more $_temp0';
+  }
+
+  @override
+  String get aiSummary => 'Summary';
+
+  @override
+  String healthDataSource(String source) {
+    return 'Data: $source';
+  }
+
+  @override
+  String healthUpdatedAt(String time) {
+    return 'Updated: $time';
+  }
+
+  @override
+  String get healthAqiLabel => 'AQI';
+
+  @override
+  String healthAqiLevelLine(int aqi, String level) {
+    return 'AQI $aqi · $level';
+  }
+
+  @override
+  String reportGreeting(String name) {
+    return 'Hi $name,';
+  }
+
+  @override
+  String get reportGreetingGuest => 'Hi there,';
+
+  @override
+  String get reportLoadingComparison => 'Loading comparison…';
+
+  @override
+  String get reportNoDeviceData => 'No device data available';
+
+  @override
+  String reportLiveAqiHint(String period) {
+    return 'Live AQI matches Home and Map · $period avg shown below';
+  }
+
+  @override
+  String get reportTapStationReport => 'Tap a station to view its report';
+
+  @override
+  String get reportNoDataShort => 'No data';
+
+  @override
+  String get reportActive => 'Active';
+
+  @override
+  String reportLiveStats(int count, String period, int aqi) {
+    return 'Live · $count readings in $period · avg $aqi';
+  }
+
+  @override
+  String reportLatestReading(String time) {
+    return 'Latest reading $time';
+  }
+
+  @override
+  String reportSummary(
+      int avg, String level, int max, String dominant, String advice) {
+    return 'Over the selected period the average AQI was $avg ($level), peaking at $max. The dominant pollutant was $dominant. $advice';
+  }
+
+  @override
+  String get reportPollutant => 'Pollutant';
+
+  @override
+  String get reportMin => 'Min';
+
+  @override
+  String get reportMax => 'Max';
+
+  @override
+  String get reportAvg => 'Avg';
+
+  @override
+  String reportExportError(String error) {
+    return 'Error exporting report: $error';
+  }
+
+  @override
+  String reportAqiTooltip(int aqi, String level) {
+    return 'AQI: $aqi\n$level';
+  }
 
   @override
   String get reportTitle => 'Reports & Analysis';
@@ -589,4 +758,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reportExporting => 'Exporting...';
+
+  @override
+  String get reportDownloadReady => 'Download complete';
+
+  @override
+  String get reportDownloadPdfReady => 'PDF report ready';
+
+  @override
+  String get reportDownloadCsvReady => 'CSV report ready';
 }

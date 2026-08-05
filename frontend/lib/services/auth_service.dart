@@ -82,7 +82,14 @@ class AuthService extends ChangeNotifier {
       'password': password,
       'password_confirm': passwordConfirm,
     });
-    await _persist(res);
+
+    if (res['access'] != null) {
+      await _persist(res);
+      return;
+    }
+
+    // Fallback: log in immediately if register response omitted tokens.
+    await login(username: username, password: password);
   }
 
   Future<void> logout() async {

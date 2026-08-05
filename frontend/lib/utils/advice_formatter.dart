@@ -44,3 +44,30 @@ String cleanAdviceMarkdown(String input) {
       .replaceAll(RegExp(r'\n{3,}'), '\n\n')
       .trim();
 }
+
+/// Maps common English AI section titles to Swahili when [languageCode] is `sw`.
+String localizedAdviceTitle(String languageCode, String title) {
+  if (languageCode != 'sw') return title;
+
+  final key = title.toLowerCase();
+  const swTitles = {
+    'summary': 'Muhtasari',
+    'health effect': 'Athari za Afya',
+    'who is at risk': 'Nani yuko Hatari',
+    'at risk': 'Walioko Hatari',
+    'protective action': 'Hatua za Kujilinda',
+    'what to avoid': 'Nini Epukwe',
+    'avoid': 'Epuka',
+    'forecast': 'Utabiri',
+    'hourly': 'Kwa Saa',
+    'recommendation': 'Mapendekezo',
+    'general advice': 'Ushauri wa Jumla',
+    'outdoor activity': 'Shughuli za Nje',
+    'indoor': 'Ndani',
+  };
+
+  for (final entry in swTitles.entries) {
+    if (key.contains(entry.key)) return entry.value;
+  }
+  return title;
+}

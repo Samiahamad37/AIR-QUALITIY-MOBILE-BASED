@@ -40,8 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Welcome back!'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).authWelcomeBack),
           backgroundColor: AppColors.good,
           behavior: SnackBarBehavior.floating,
         ),
@@ -80,25 +80,24 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const AuthHeader(
+                AuthHeader(
                   icon: Icons.lock_outline_rounded,
-                  title: 'Welcome back',
-                  subtitle:
-                      'Sign in to view your air-quality reports and analysis.',
+                  title: l10n.authWelcomeTitle,
+                  subtitle: l10n.authWelcomeSubtitle,
                 ),
                 const SizedBox(height: 32),
                 AuthTextField(
                   controller: _usernameController,
-                  label: 'Username',
+                  label: l10n.authUsername,
                   icon: Icons.person_outline_rounded,
                   textInputAction: TextInputAction.next,
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Username is required' : null,
+                      (v == null || v.trim().isEmpty) ? l10n.authUsernameRequired : null,
                 ),
                 const SizedBox(height: 16),
                 AuthTextField(
                   controller: _passwordController,
-                  label: 'Password',
+                  label: l10n.authPassword,
                   icon: Icons.lock_outline_rounded,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
@@ -115,11 +114,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Password is required' : null,
+                      (v == null || v.isEmpty) ? l10n.authPasswordRequired : null,
                 ),
                 const SizedBox(height: 28),
                 AuthPrimaryButton(
-                  label: 'Sign In',
+                  label: l10n.signIn,
                   isLoading: _isLoading,
                   onPressed: _login,
                 ),
@@ -128,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "Don't have an account? ",
+                      l10n.authNoAccount,
                       style: TextStyle(color: palette.textSecondary, fontSize: 14),
                     ),
                     GestureDetector(
@@ -139,9 +138,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   builder: (_) => const RegisterScreen(),
                                 ),
                               ),
-                      child: const Text(
-                        'Register',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.authRegister,
+                        style: const TextStyle(
                           color: AppColors.good,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,

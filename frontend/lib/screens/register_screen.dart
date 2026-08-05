@@ -39,16 +39,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await context.read<AuthService>().register(
+      final auth = context.read<AuthService>();
+      await auth.register(
             username: _usernameController.text.trim(),
             email: _emailController.text.trim(),
             password: _passwordController.text,
             passwordConfirm: _confirmPasswordController.text,
           );
+      if (!auth.isLoggedIn) {
+        await auth.login(
+          username: _usernameController.text.trim(),
+          password: _passwordController.text,
+        );
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created. You are now signed in!'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).authRegisterSuccess),
           backgroundColor: AppColors.good,
           behavior: SnackBarBehavior.floating,
         ),
@@ -87,35 +94,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const AuthHeader(
+                AuthHeader(
                   icon: Icons.person_add_alt_1_outlined,
-                  title: 'Join AirWatch',
-                  subtitle:
-                      'Create an account to unlock personalized reports and analysis.',
+                  title: l10n.authJoinTitle,
+                  subtitle: l10n.authJoinSubtitle,
                 ),
                 const SizedBox(height: 32),
                 AuthTextField(
                   controller: _usernameController,
-                  label: 'Username',
+                  label: l10n.authUsername,
                   icon: Icons.person_outline_rounded,
                   textInputAction: TextInputAction.next,
                   validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Username is required'
+                      ? l10n.authUsernameRequired
                       : null,
                 ),
                 const SizedBox(height: 16),
                 AuthTextField(
                   controller: _emailController,
-                  label: 'Email address',
+                  label: l10n.authEmail,
                   icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'Email is required';
+                      return l10n.authEmailRequired;
                     }
                     if (!v.contains('@') || !v.contains('.')) {
-                      return 'Enter a valid email';
+                      return l10n.authEmailInvalid;
                     }
                     return null;
                   },
@@ -123,7 +129,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 16),
                 AuthTextField(
                   controller: _passwordController,
-                  label: 'Password',
+                  label: l10n.authPassword,
                   icon: Icons.lock_outline_rounded,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
@@ -139,9 +145,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
+                    if (v == null || v.isEmpty) return l10n.authPasswordRequired;
                     if (v.length < 8) {
-                      return 'Password must be at least 8 characters';
+                      return l10n.authPasswordMinLength;
                     }
                     return null;
                   },
@@ -149,7 +155,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 16),
                 AuthTextField(
                   controller: _confirmPasswordController,
-                  label: 'Confirm password',
+                  label: l10n.authConfirmPassword,
                   icon: Icons.lock_outline_rounded,
                   obscureText: _obscureConfirm,
                   textInputAction: TextInputAction.done,
@@ -167,17 +173,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) {
-                      return 'Please confirm your password';
+                      return l10n.authConfirmRequired;
                     }
                     if (v != _passwordController.text) {
-                      return 'Passwords do not match';
+                      return l10n.authPasswordMismatch;
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 28),
                 AuthPrimaryButton(
-                  label: 'Create Account',
+                  label: l10n.createAccount,
                   isLoading: _isLoading,
                   onPressed: _register,
                 ),
@@ -186,7 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Already have an account? ',
+                      l10n.authAlreadyHaveAccount,
                       style:
                           TextStyle(color: palette.textSecondary, fontSize: 14),
                     ),
@@ -198,9 +204,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   builder: (_) => const LoginScreen(),
                                 ),
                               ),
-                      child: const Text(
-                        'Sign In',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.signIn,
+                        style: const TextStyle(
                           color: AppColors.good,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
