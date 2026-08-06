@@ -33,9 +33,7 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
   @override
   void initState() {
     super.initState();
-    if (widget.isActive) {
-      _scheduleMapMount();
-    }
+    _mapMounted = widget.isActive;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = context.read<SharedDataService>();
       if (service.deviceAqiById.isEmpty) {
@@ -46,19 +44,13 @@ class _MapScreenState extends State<MapScreen> with AutomaticKeepAliveClientMixi
     });
   }
 
-  void _scheduleMapMount() {
-    if (_mapMounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _mapMounted) return;
-      setState(() => _mapMounted = true);
-    });
-  }
-
   @override
   void didUpdateWidget(MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !_mapMounted) {
+      setState(() => _mapMounted = true);
+    }
     if (widget.isActive && !oldWidget.isActive) {
-      _scheduleMapMount();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_selected != null) {
           _mapHandle?.moveTo(_selected!.position, 17);
