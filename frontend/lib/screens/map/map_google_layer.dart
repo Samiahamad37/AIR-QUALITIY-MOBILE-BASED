@@ -124,39 +124,46 @@ class _GoogleMapLayerState extends State<_GoogleMapLayer> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(
-      child: gmaps.GoogleMap(
-        initialCameraPosition: gmaps.CameraPosition(
-          target: gmaps.LatLng(
-            mapInitialPosition.latitude,
-            mapInitialPosition.longitude,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+          return const SizedBox.shrink();
+        }
+        return gmaps.GoogleMap(
+          key: const ValueKey('airwatch-google-map'),
+          initialCameraPosition: gmaps.CameraPosition(
+            target: gmaps.LatLng(
+              mapInitialPosition.latitude,
+              mapInitialPosition.longitude,
+            ),
+            zoom: 16,
           ),
-          zoom: 16,
-        ),
-        onMapCreated: (controller) {
-          _handle.bind(controller);
-          widget.onHandleReady(_handle);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            controller.animateCamera(
-              gmaps.CameraUpdate.newLatLngZoom(
-                gmaps.LatLng(
-                  mapInitialPosition.latitude,
-                  mapInitialPosition.longitude,
+          onMapCreated: (controller) {
+            _handle.bind(controller);
+            widget.onHandleReady(_handle);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              controller.animateCamera(
+                gmaps.CameraUpdate.newLatLngZoom(
+                  gmaps.LatLng(
+                    mapInitialPosition.latitude,
+                    mapInitialPosition.longitude,
+                  ),
+                  16,
                 ),
-                16,
-              ),
-            );
-          });
-        },
-        onTap: (_) => widget.onDeselect(),
-        myLocationButtonEnabled: false,
-        myLocationEnabled: false,
-        zoomControlsEnabled: false,
-        mapToolbarEnabled: false,
-        compassEnabled: false,
-        circles: widget.initialLoad ? {} : _buildCircles(),
-        markers: widget.initialLoad ? {} : _buildMarkers(),
-      ),
+              );
+            });
+          },
+          onTap: (_) => widget.onDeselect(),
+          myLocationButtonEnabled: false,
+          myLocationEnabled: false,
+          zoomControlsEnabled: false,
+          mapToolbarEnabled: false,
+          compassEnabled: false,
+          liteModeEnabled: false,
+          circles: widget.initialLoad ? {} : _buildCircles(),
+          markers: widget.initialLoad ? {} : _buildMarkers(),
+        );
+      },
     );
   }
 }
