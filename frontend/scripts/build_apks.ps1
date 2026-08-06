@@ -50,8 +50,7 @@ Write-Host ""
 function Build-Apk {
     param(
         [string]$Flavor,
-        [string]$ApiHost,
-        [string]$OutName
+        [string]$ApiHost
     )
 
     Write-Host ">> Building $Flavor (API_HOST=$ApiHost)..." -ForegroundColor Green
@@ -69,28 +68,39 @@ function Build-Apk {
         }
     }
 
-    & flutter build apk --flavor $Flavor --release --no-pub "--dart-define=API_HOST=$ApiHost"
+    & flutter build apk --flavor $Flavor --release --no-pub `
+        "--dart-define=API_HOST=$ApiHost" `
+        --split-per-abi
     if ($LASTEXITCODE -ne 0) {
         throw "flutter build failed for flavor $Flavor"
     }
 
-    $built = Join-Path $FrontendRoot "build\app\outputs\flutter-apk\app-$Flavor-release.apk"
-    if (-not (Test-Path $built)) {
-        throw "Expected APK not found: $built"
-    }
+    $apkDir = Join-Path $FrontendRoot "build\app\outputs\flutter-apk"
+    $abis = @(
+        @{ Abi = "arm64-v8a"; Suffix = "arm64" },
+        @{ Abi = "armeabi-v7a"; Suffix = "arm32" },
+        @{ Abi = "x86_64"; Suffix = "x86_64" }
+    )
 
-    $dest = Join-Path $outDir $OutName
-    Copy-Item -Path $built -Destination $dest -Force
-    Write-Host "   Saved: build\apk-release\$OutName" -ForegroundColor Gray
+    foreach ($entry in $abis) {
+        $built = Join-Path $apkDir "app-$($entry.Abi)-$Flavor-release.apk"
+        if (-not (Test-Path $built)) { continue }
+        $dest = Join-Path $outDir "airwatch-$Flavor-$($entry.Suffix).apk"
+        Copy-Item -Path $built -Destination $dest -Force
+        Write-Host "   Saved: build\apk-release\airwatch-$Flavor-$($entry.Suffix).apk" -ForegroundColor Gray
+    }
 }
 
-Build-Apk -Flavor "production" -ApiHost "http://92.5.10.116" -OutName "airwatch-production.apk"
-Build-Apk -Flavor "emulator" -ApiHost "10.0.2.2:8000" -OutName "airwatch-emulator.apk"
-Build-Apk -Flavor "local" -ApiHost "${lan}:8000" -OutName "airwatch-local.apk"
+Build-Apk -Flavor "production" -ApiHost "http://92.5.10.116"
+Build-Apk -Flavor "emulator" -ApiHost "10.0.2.2:8000"
+Build-Apk -Flavor "local" -ApiHost "${lan}:8000"
 
 Write-Host ""
-Write-Host "Done. APK files:" -ForegroundColor Cyan
-Write-Host "  airwatch-production.apk  - VM server 92.5.10.116"
-Write-Host "  airwatch-emulator.apk    - Android emulator + local Django"
-Write-Host "  airwatch-local.apk       - phone on WiFi, backend on ${lan}:8000"
+Write-Host "Done. Split APKs (pick the file that matches the phone CPU):" -ForegroundColor Cyan
+Write-Host "  *-arm64.apk   - new 64-bit phones (arm64-v8a)"
+Write-Host "  *-arm32.apk   - older phones (armeabi-v7a)"
+Write-Host "  *-x86_64.apk  - Android emulator"
 Write-Host ""
+Write-Host "  production -> 92.5.10.116 | emulator -> 10.0.2.2:8000 | local -> ${lan}:8000"
+Write-Host ""
+Write-Host "One flavor only: .\scripts\build_apks_abi.ps1 -Flavor production" -ForegroundColor Gray
