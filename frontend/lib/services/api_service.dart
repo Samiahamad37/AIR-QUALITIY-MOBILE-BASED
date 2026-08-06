@@ -36,7 +36,7 @@ class ApiException implements Exception {
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
 Future<dynamic> _get(String path,
-    [Map<String, String>? params, String? baseUrl]) async {
+    [Map<String, String>? params, String? baseUrl, Duration? timeout]) async {
   final root = baseUrl ?? airQualityApiBaseUrl;
   final uri = (params != null && params.isNotEmpty)
       ? Uri.parse('$root$path').replace(queryParameters: params)
@@ -45,7 +45,8 @@ Future<dynamic> _get(String path,
 
   try {
     final res = await http
-        .get(uri, headers: {'Accept': 'application/json'}).timeout(_timeout);
+        .get(uri, headers: {'Accept': 'application/json'})
+        .timeout(timeout ?? _timeout);
 
     if (kDebugMode) print('>>> Response status: ${res.statusCode}');
 
@@ -115,13 +116,19 @@ class AirQualityApiService {
     String deviceId = defaultDevice,
     int hours = 24,
     int? limit,
+    Duration? timeout,
   }) async {
     final params = <String, String>{
       'device_id': deviceId,
       'hours': '$hours',
       if (limit != null) 'limit': '$limit',
     };
-    final data = await _get('/device/readings/', params);
+    final data = await _get(
+      '/device/readings/',
+      params,
+      null,
+      timeout ?? (hours > 168 ? const Duration(seconds: 120) : null),
+    );
     print('API Response data: $data');
     final readings = List<Map<String, dynamic>>.from(data['readings'] as List);
     print('Parsed ${readings.length} readings');
