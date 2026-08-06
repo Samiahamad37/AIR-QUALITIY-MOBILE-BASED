@@ -228,30 +228,72 @@ class InfluxDBService:
             logger.error('Error listing TTN devices: %s', e)
             return []
 
-    def query_ttn_recent_readings(self, device_id, hours=24, limit=None):
-        """
-        Fetch recent TTN uplinks for a device.
-
-        Each row is one uplink timestamp with metrics pivoted from the ``name`` tag
-        (Temperature, PM2.5, CO2, etc.).
-        """
-        try:
-            limit_clause = f'\n  |> limit(n: {int(limit)})' if limit else ''
-            flux_query = f'''{self._flux_strings_import()}from(bucket: "{self.bucket}")
-                  |> range(start: -{int(hours)}h)
+    def _query_ttn_readings_window(
+        self, device_id, start_hours_ago, stop_hours_ago=0, limit=None
+    ):
+        """Readings from ``start_hours_ago`` until ``stop_hours_ago`` (both relative to now)."""
+        stop_clause = (
+            f', stop: -{int(stop_hours_ago)}h' if int(stop_hours_ago) > 0 else ''
+        )
+        limit_clause = f'\n  |> limit(n: {int(limit)})' if limit else ''
+        flux_query = f'''{self._flux_strings_import()}from(bucket: "{self.bucket}")
+                  |> range(start: -{int(start_hours_ago)}h{stop_clause})
                   |> filter(fn: (r) => r._measurement == "{self.MEASUREMENT}")
                   {self._device_topic_filter(device_id)}
                   |> filter(fn: (r) => r._field == "value")
                   |> pivot(rowKey: ["_time"], columnKey: ["name"], valueColumn: "_value")
                   |> sort(columns: ["_time"], desc: true){limit_clause}
             '''
-            logger.info(f'Querying TTN readings for device {device_id}, hours: {hours}')
-            logger.info(f'Flux query: {flux_query}')
-            result = self._run_flux(flux_query)
-            logger.info(f'Query result tables: {len(result)}')
-            readings = self._pivot_ttn_readings(result, device_id=device_id)
-            logger.info(f'Parsed {len(readings)} readings for device {device_id}')
-            return readings
+        logger.info(
+            'Querying TTN readings for %s, window -%sh to -%sh',
+            device_id,
+            start_hours_ago,
+            stop_hours_ago,
+        )
+        result = self._run_flux(flux_query)
+        return self._pivot_ttn_readings(result, device_id=device_id)
+
+    def query_ttn_recent_readings(self, device_id, hours=24, limit=None):
+        """
+        Fetch recent TTN uplinks for a device.
+
+        Each row is one uplink timestamp with metrics pivoted from the ``name`` tag
+        (Temperature, PM2.5, CO2, etc.). Large ranges are fetched in 7-day chunks.
+        """
+        try:
+            hours = int(hours)
+            chunk_hours = 168
+            if hours <= chunk_hours:
+                readings = self._query_ttn_readings_window(
+                    device_id, hours, stop_hours_ago=0, limit=limit
+                )
+                logger.info('Parsed %d readings for device %s', len(readings), device_id)
+                return readings
+
+            merged = []
+            seen = set()
+            stop_hours_ago = 0
+            remaining = hours
+            while remaining > 0:
+                window = min(chunk_hours, remaining)
+                start_hours_ago = stop_hours_ago + window
+                batch = self._query_ttn_readings_window(
+                    device_id, start_hours_ago, stop_hours_ago=stop_hours_ago
+                )
+                for row in batch:
+                    ts = row.get('timestamp')
+                    if ts in seen:
+                        continue
+                    seen.add(ts)
+                    merged.append(row)
+                stop_hours_ago = start_hours_ago
+                remaining -= window
+
+            merged.sort(key=lambda r: r['timestamp'], reverse=True)
+            if limit:
+                merged = merged[: int(limit)]
+            logger.info('Parsed %d readings for device %s', len(merged), device_id)
+            return merged
         except Exception as e:
             logger.error('Error querying TTN readings for %s: %s', device_id, e)
             return []
