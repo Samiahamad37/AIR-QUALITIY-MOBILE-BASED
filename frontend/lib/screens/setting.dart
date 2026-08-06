@@ -10,7 +10,6 @@ import '/screens/register_screen.dart';
 import '/screens/report_analysis_screen.dart';
 import '/services/shared_data_service.dart';
 import '/utils/device_labels.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 // ─── Theme-aware colors — work in both light & dark ────────────────────────────
@@ -34,48 +33,25 @@ Color _textSub(BuildContext c) => Theme.of(c).brightness == Brightness.dark
 
 const _accent = Color(0xFFFF2D55);
 
-// ─── Local-only settings (region/station/etc — not theme/language) ────────────
+// ─── Local-only settings (station/etc — not theme/language) ────────────
 
 class _Local extends ChangeNotifier {
   bool notifications = true;
-  // bool biometric          = true;
-  bool cloudSync = false;
-  String region = 'TZ';
   String station = 'Lands Building';
   String aqiThreshold = '150 — Sensitive';
 
   void toggle(String k, bool v) {
     if (k == 'notifications') notifications = v;
-    // if (k == 'biometric')     biometric     = v;
-    if (k == 'cloudSync') cloudSync = v;
     notifyListeners();
   }
 
   void set(String k, String v) {
-    if (k == 'region') region = v;
     if (k == 'station') station = v;
     if (k == 'aqiThreshold') aqiThreshold = v;
     notifyListeners();
   }
 
   Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    cloudSync = prefs.getBool('cloud_sync') ?? false;
-    region = prefs.getString('settings_region') ?? region;
-    notifyListeners();
-  }
-
-  Future<void> setCloudSync(bool value) async {
-    cloudSync = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('cloud_sync', value);
-    notifyListeners();
-  }
-
-  Future<void> saveRegion(String value) async {
-    region = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('settings_region', value);
     notifyListeners();
   }
 }
@@ -199,28 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         //     _local.toggle('biometric', v);
                         //     _snack(ctx, v ? AppLocalizations.of(ctx)!.settingsBiometricOn : AppLocalizations.of(ctx)!.settingsBiometricOff);
                         //   },
-                        // ),
-                        _Toggle(
-                          ctx: ctx,
-                          icon: CupertinoIcons.arrow_2_circlepath,
-                          iconBg: const Color(0xFF30B0C7),
-                          label: AppLocalizations.of(ctx).settingsCloudSync,
-                          sub: AppLocalizations.of(ctx).settingsCloudSyncSub,
-                          value: _local.cloudSync,
-                          onChanged: (v) async {
-                            await _local.setCloudSync(v);
-                            if (v) {
-                              await ctx.read<SharedDataService>().loadData();
-                            }
-                            _snack(
-                                ctx,
-                                v
-                                    ? AppLocalizations.of(ctx)
-                                        .settingsCloudSyncOn
-                                    : AppLocalizations.of(ctx)
-                                        .settingsCloudSyncOff);
-                          },
-                        ),
+                        //                         ),
                       ]),
 
                       const SizedBox(height: 28),
@@ -246,26 +201,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ctx,
                                   AppLocalizations.of(ctx)
                                       .settingsLanguageSelected(v));
-                            },
-                          ),
-                        ),
-                        _Nav(
-                          ctx: ctx,
-                          icon: CupertinoIcons.location_fill,
-                          iconBg: const Color(0xFFFF9500),
-                          label: AppLocalizations.of(ctx).settingsRegion,
-                          value: _local.region,
-                          onTap: () => _pick(
-                            ctx,
-                            title: AppLocalizations.of(ctx).settingsRegion,
-                            options: const ['TZ', 'KE', 'UG', 'RW', 'ZM'],
-                            current: _local.region,
-                            onSelect: (v) {
-                              _local.saveRegion(v);
-                              _snack(
-                                  ctx,
-                                  AppLocalizations.of(ctx)
-                                      .settingsRegionSelected(v));
                             },
                           ),
                         ),
