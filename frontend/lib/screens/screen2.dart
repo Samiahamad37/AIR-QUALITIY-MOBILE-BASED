@@ -11,6 +11,8 @@ import '/screens/app_theme.dart';
 import '/widgets/common_widget.dart';
 import '/services/shared_data_service.dart';
 import '/utils/device_labels.dart';
+import '/utils/time_utils.dart';
+import '/utils/chart_utils.dart';
 import 'package:air_quality_monitor/L10n/app_localizations.dart';
 
 const String defaultDevice = 'lands-building';
@@ -34,6 +36,11 @@ class _ForecastScreenState extends State<ForecastScreen> {
   String? _forecastError;
   String? _trendDirection;
 
+  // Cached pollutant series — switching pollutant is instant (no extra API call).
+  String? _cachedHistoryDevice;
+  int? _cachedHistoryHours;
+  Map<String, List<Map<String, dynamic>>> _pollutantsCache = {};
+
   final List<String> _pollutants = ['co2', 'nox', 'voc', 'pm25', 'pm10'];
   final List<int> _hourOptions = [24, 48, 168];
 
@@ -41,49 +48,104 @@ class _ForecastScreenState extends State<ForecastScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadPollutantData();
+      _loadAll();
     });
   }
 
-  Future<void> _loadPollutantData() async {
+  void _applyCachedPollutant() {
+    _pollutantHistory =
+        List<Map<String, dynamic>>.from(_pollutantsCache[_selectedPollutant] ?? []);
+  }
+
+  bool get _historyCacheValid {
+    final service = context.read<SharedDataService>();
+    return _cachedHistoryDevice == service.selectedDevice &&
+        _cachedHistoryHours == _selectedHours &&
+        _pollutantsCache.containsKey(_selectedPollutant);
+  }
+
+  Future<void> _loadAll() async {
+    await Future.wait([_loadForecast(), _loadHistory()]);
+  }
+
+  Future<void> _loadHistory() async {
     final service = context.read<SharedDataService>();
     final deviceId = service.selectedDevice;
 
-    List<Map<String, dynamic>> history = [];
-    String? forecastError;
-    Map<String, dynamic>? predictionResponse;
-
     try {
-      history = await api.fetchPollutantHistory(
+      final data = await api.fetchAllPollutants(
         deviceId: deviceId,
-        pollutant: _selectedPollutant,
         hours: _selectedHours,
       );
+      final raw = data['pollutants'];
+      final parsed = <String, List<Map<String, dynamic>>>{};
+      if (raw is Map) {
+        raw.forEach((key, value) {
+          if (value is List) {
+            parsed[key.toString()] =
+                List<Map<String, dynamic>>.from(value.cast<Map>());
+          }
+        });
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _pollutantsCache = parsed;
+        _cachedHistoryDevice = deviceId;
+        _cachedHistoryHours = _selectedHours;
+        _applyCachedPollutant();
+      });
     } catch (e) {
-      forecastError = e.toString();
       debugPrint('Failed to load pollutant history: $e');
+      if (!mounted) return;
+      setState(() {
+        _forecastError ??= e.toString();
+      });
     }
+  }
+
+  Future<void> _loadForecast() async {
+    final service = context.read<SharedDataService>();
+    final deviceId = service.selectedDevice;
 
     try {
-      predictionResponse = await api.fetchPredictions(deviceId: deviceId);
+      final predictionResponse = await api.fetchPredictions(deviceId: deviceId);
+      final hourlyForecast =
+          _buildHourlyForecastFromApi(predictionResponse);
+      final dailyForecast = _buildDailyForecastFromHourly(hourlyForecast);
+
+      if (!mounted) return;
+      setState(() {
+        _forecast = hourlyForecast;
+        _dailyForecast = dailyForecast;
+        _trendDirection = predictionResponse['trend_direction'] as String?;
+      });
     } catch (e) {
-      forecastError ??= e.toString();
       debugPrint('Failed to load predictions: $e');
+      if (!mounted) return;
+      setState(() {
+        _forecastError ??= e.toString();
+      });
     }
+  }
 
-    final hourlyForecast = predictionResponse != null
-        ? _buildHourlyForecastFromApi(predictionResponse)
-        : <Map<String, dynamic>>[];
-    final dailyForecast = _buildDailyForecastFromHourly(hourlyForecast);
-
-    if (!mounted) return;
+  void _selectPollutant(String pollutant) {
+    if (pollutant == _selectedPollutant) return;
     setState(() {
-      _pollutantHistory = history;
-      _forecast = hourlyForecast;
-      _dailyForecast = dailyForecast;
-      _forecastError = forecastError;
-      _trendDirection = predictionResponse?['trend_direction'] as String?;
+      _selectedPollutant = pollutant;
+      if (_historyCacheValid) {
+        _applyCachedPollutant();
+      }
     });
+    if (!_historyCacheValid) {
+      _loadHistory();
+    }
+  }
+
+  void _selectHours(int hours) {
+    if (hours == _selectedHours) return;
+    setState(() => _selectedHours = hours);
+    _loadHistory();
   }
 
   List<Map<String, dynamic>> _buildHourlyForecastFromApi(
@@ -178,8 +240,11 @@ class _ForecastScreenState extends State<ForecastScreen> {
       builder: (context, service, _) {
         if (_trackedDevice != service.selectedDevice) {
           _trackedDevice = service.selectedDevice;
+          _pollutantsCache = {};
+          _cachedHistoryDevice = null;
+          _cachedHistoryHours = null;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _loadPollutantData();
+            if (mounted) _loadAll();
           });
         }
 
@@ -317,14 +382,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                       final isSelected =
                                           p == _selectedPollutant;
                                       return GestureDetector(
-                                        onTap: () {
-                                          setState(
-                                              () => _selectedPollutant = p);
-                                          _loadPollutantData();
-                                        },
+                                        onTap: () => _selectPollutant(p),
                                         child: AnimatedContainer(
                                           duration:
-                                              const Duration(milliseconds: 200),
+                                              const Duration(milliseconds: 100),
                                           margin:
                                               const EdgeInsets.only(right: 8),
                                           padding: const EdgeInsets.symmetric(
@@ -378,13 +439,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                             ? '48h'
                                             : '7d';
                                     return GestureDetector(
-                                      onTap: () {
-                                        setState(() => _selectedHours = h);
-                                        _loadPollutantData();
-                                      },
+                                      onTap: () => _selectHours(h),
                                       child: AnimatedContainer(
                                         duration:
-                                            const Duration(milliseconds: 200),
+                                            const Duration(milliseconds: 100),
                                         margin: const EdgeInsets.only(right: 8),
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 16, vertical: 8),
@@ -429,22 +487,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                 child: GlassCard(
                                   padding:
                                       const EdgeInsets.fromLTRB(16, 16, 8, 12),
-                                  child: _pollutantHistory.isEmpty
-                                      ? SizedBox(
-                                          height: 180,
-                                          child: Center(
-                                            child: Text(
-                                                AppLocalizations.of(context)
-                                                    .forecastNoData,
-                                                style: TextStyle(
-                                                    color:
-                                                        palette.textSecondary)),
-                                          ),
-                                        )
-                                      : SizedBox(
-                                          height: 180,
-                                          child: _buildHistoryChart(),
-                                        ),
+                                  child: SizedBox(
+                                    height: 220,
+                                    child: _buildHistoryChart(),
+                                  ),
                                 ),
                               ),
                             ),
@@ -495,7 +541,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                     ),
                   ]),
                   GestureDetector(
-                    onTap: _loadPollutantData,
+                    onTap: _loadAll,
                     child: Container(
                       width: 36,
                       height: 36,
@@ -549,7 +595,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
                   onChanged: (val) {
                     if (val != null) {
                       service.setSelectedDevice(val);
-                      _loadPollutantData();
+                      _pollutantsCache = {};
+                      _cachedHistoryDevice = null;
+                      _cachedHistoryHours = null;
+                      _loadAll();
                     }
                   },
                 ),
@@ -586,8 +635,16 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
     final maxAqi = spots.map((s) => s.y).reduce(max).clamp(50.0, 300.0);
     final palette = context.palette;
+    final maxX = (_forecast.length - 1).toDouble();
+
+    String hourLabel(int i) {
+      final ts =
+          DateTime.parse(_forecast[i]['timestamp'].toString()).toLocal();
+      return DateFormat('ha').format(ts).toLowerCase();
+    }
 
     return LineChart(
+      duration: Duration.zero,
       LineChartData(
         gridData: FlGridData(
           show: true,
@@ -614,8 +671,29 @@ class _ForecastScreenState extends State<ForecastScreen> {
               ),
             ),
           ),
-          bottomTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false, reservedSize: 8),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: 1,
+              getTitlesWidget: (val, _) {
+                final i = val.round();
+                if (i < 0 || i >= _forecast.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    hourLabel(i),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
           rightTitles:
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -623,6 +701,8 @@ class _ForecastScreenState extends State<ForecastScreen> {
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
+        minX: 0,
+        maxX: maxX,
         lineBarsData: [
           LineChartBarData(
             spots: spots,
@@ -675,16 +755,11 @@ class _ForecastScreenState extends State<ForecastScreen> {
                 if (i < 0 || i >= _forecast.length) {
                   return const LineTooltipItem('', TextStyle());
                 }
-                final ts = DateTime.parse(
-                        _forecast[i]['timestamp'].toString())
-                    .toLocal();
-                final hour =
-                    DateFormat('ha').format(ts).toLowerCase();
                 final aqi =
                     (_forecast[i]['predicted_aqi'] as num?)?.toInt() ?? 0;
                 final level = getAqiLevel(aqi);
                 return LineTooltipItem(
-                  '$hour\nAQI $aqi',
+                  '$aqi',
                   TextStyle(
                     color: level.color,
                     fontWeight: FontWeight.w700,
@@ -700,23 +775,193 @@ class _ForecastScreenState extends State<ForecastScreen> {
     );
   }
 
+  String _formatHistoryHour(DateTime dt) {
+    final h = dt.hour;
+    final meridiem = h < 12 ? 'am' : 'pm';
+    final hourDisplay = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '$hourDisplay$meridiem';
+  }
+
+  String _historyTimeLabel(DateTime slotStart, {required bool isCurrent}) {
+    if (isCurrent) return 'Now';
+    if (_selectedHours >= 168) {
+      return DateFormat('EEE').format(slotStart);
+    }
+    if (_selectedHours >= 48) {
+      return '${DateFormat('EEE').format(slotStart)} ${_formatHistoryHour(slotStart)}';
+    }
+    return _formatHistoryHour(slotStart);
+  }
+
+  List<int> _historyAxisTickIndices(int maxX) {
+    if (_selectedHours >= 168) {
+      return List.generate(maxX + 1, (i) => i);
+    }
+    if (_selectedHours >= 48) {
+      return [0, maxX ~/ 4, maxX ~/ 2, (maxX * 3) ~/ 4, maxX];
+    }
+    return [0, 6, 12, 18, maxX];
+  }
+
+  List<_HistorySlot> _bucketPollutantHistory() {
+    final now = DateTime.now();
+    final currentHourStart = DateTime(now.year, now.month, now.day, now.hour);
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final isWeekly = _selectedHours >= 168;
+    final slotCount = isWeekly ? 7 : _selectedHours;
+    final maxX = slotCount - 1;
+
+    final windowStart = isWeekly
+        ? todayStart.subtract(Duration(days: maxX))
+        : currentHourStart.subtract(Duration(hours: maxX));
+
+    final raw = _pollutantHistory
+        .map((r) {
+          final ts = parseApiTimestamp(r['timestamp']);
+          final value = (r['value'] as num?)?.toDouble();
+          return (ts: ts, value: value);
+        })
+        .where(
+          (p) =>
+              !p.ts.isBefore(windowStart) &&
+              !p.ts.isAfter(now) &&
+              p.value != null &&
+              isValidPollutantSample(_selectedPollutant, p.value!),
+        )
+        .toList();
+
+    final slots = <_HistorySlot>[];
+    double? lastValue;
+
+    for (var i = 0; i < slotCount; i++) {
+      final slotStart = isWeekly
+          ? todayStart.subtract(Duration(days: maxX - i))
+          : currentHourStart.subtract(Duration(hours: maxX - i));
+      final slotEnd = isWeekly
+          ? (i == maxX ? now : slotStart.add(const Duration(days: 1)))
+          : (i == maxX ? now : slotStart.add(const Duration(hours: 1)));
+      final isCurrent = i == maxX;
+
+      final bucket = raw.where((p) {
+        if (p.ts.isBefore(slotStart)) return false;
+        if (isCurrent) return !p.ts.isAfter(now);
+        return p.ts.isBefore(slotEnd);
+      }).toList();
+
+      double? value;
+      var carriedForward = false;
+
+      if (bucket.isNotEmpty) {
+        final latest = latestReadingInBucket(bucket);
+        if (latest != null &&
+            isMeaningfulReadingChange(lastValue, latest)) {
+          value = latest;
+        }
+      }
+
+      if (value == null && isCurrent && raw.isNotEmpty) {
+        final latestOverall = latestReadingInBucket(raw);
+        if (latestOverall != null &&
+            isMeaningfulReadingChange(lastValue, latestOverall)) {
+          value = latestOverall;
+        }
+      }
+
+      if (value == null && lastValue != null) {
+        value = lastValue;
+        carriedForward = true;
+      }
+
+      if (value == null) continue;
+
+      if (!carriedForward) {
+        lastValue = value;
+      }
+
+      slots.add(
+        _HistorySlot(
+          index: i,
+          start: slotStart,
+          value: value,
+          isCurrent: isCurrent,
+          timeLabel: _historyTimeLabel(slotStart, isCurrent: isCurrent),
+          carriedForward: carriedForward,
+        ),
+      );
+    }
+
+    return slots;
+  }
+
+  int _historyMaxX() {
+    if (_selectedHours >= 168) return 6;
+    return _selectedHours - 1;
+  }
+
+  DateTime _historySlotStartForIndex(int index) {
+    final now = DateTime.now();
+    final currentHourStart = DateTime(now.year, now.month, now.day, now.hour);
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final maxX = _historyMaxX();
+
+    if (_selectedHours >= 168) {
+      return todayStart.subtract(Duration(days: maxX - index));
+    }
+    return currentHourStart.subtract(Duration(hours: maxX - index));
+  }
+
+  double _defaultHistoryMaxY(String pollutant) {
+    switch (pollutant) {
+      case 'co2':
+        return 100;
+      case 'pm25':
+        return 50;
+      case 'pm10':
+        return 100;
+      case 'nox':
+      case 'voc':
+        return 1;
+      default:
+        return 100;
+    }
+  }
+
   Widget _buildHistoryChart() {
-    if (_pollutantHistory.isEmpty) return const SizedBox();
+    final palette = context.palette;
+    final l10n = AppLocalizations.of(context);
 
-    final spots = _pollutantHistory.asMap().entries.map((e) {
-      final value = (e.value['value'] as num?)?.toDouble() ?? 0;
-      return FlSpot(e.key.toDouble(), value);
-    }).toList();
+    final slots = _pollutantHistory.isEmpty
+        ? <_HistorySlot>[]
+        : _bucketPollutantHistory();
+    final hasData = slots.isNotEmpty;
 
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final maxX = _historyMaxX();
+    final tickIndices = _historyAxisTickIndices(maxX);
+    final tickIndexSet = tickIndices.toSet();
 
-    return LineChart(
+    final spots = hasData
+        ? slots.map((s) => FlSpot(s.index.toDouble(), s.value)).toList()
+        : <FlSpot>[];
+    final maxY = hasData
+        ? spots.map((s) => s.y).reduce(max) * 1.2
+        : _defaultHistoryMaxY(_selectedPollutant);
+    final yInterval = maxY / 4;
+
+    final chart = LineChart(
+      key: ValueKey('history-$_selectedHours-$_selectedPollutant-$hasData'),
+      duration: Duration.zero,
       LineChartData(
         gridData: FlGridData(
           show: true,
-          drawVerticalLine: false,
+          drawVerticalLine: true,
+          verticalInterval: _selectedHours >= 168 ? 1 : 6,
+          horizontalInterval: yInterval,
           getDrawingHorizontalLine: (_) => FlLine(
             color: AppColors.border.withOpacity(0.3),
+            strokeWidth: 1,
+          ),
+          getDrawingVerticalLine: (_) => FlLine(
+            color: AppColors.border.withOpacity(0.15),
             strokeWidth: 1,
           ),
         ),
@@ -725,12 +970,13 @@ class _ForecastScreenState extends State<ForecastScreen> {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 40,
+              interval: yInterval,
               getTitlesWidget: (val, _) => Text(
-                val.toStringAsFixed(1),
+                val.toStringAsFixed(val == val.roundToDouble() ? 0 : 1),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: context.palette.textSecondary,
+                  color: palette.textSecondary,
                 ),
               ),
             ),
@@ -738,19 +984,28 @@ class _ForecastScreenState extends State<ForecastScreen> {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              interval: (_pollutantHistory.length / 4).ceilToDouble(),
+              reservedSize: 28,
+              interval: 1,
               getTitlesWidget: (val, _) {
-                final i = val.toInt();
-                if (i >= _pollutantHistory.length) return const SizedBox();
-                final ts =
-                    DateTime.parse(_pollutantHistory[i]['timestamp'].toString())
-                        .toLocal();
-                return Text(
-                  DateFormat('ha').format(ts).toLowerCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: context.palette.textSecondary,
+                final index = val.round();
+                if (!tickIndexSet.contains(index)) {
+                  return const SizedBox.shrink();
+                }
+
+                final label = _historyTimeLabel(
+                  _historySlotStartForIndex(index),
+                  isCurrent: index == maxX,
+                );
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: palette.textSecondary,
+                    ),
                   ),
                 );
               },
@@ -762,23 +1017,100 @@ class _ForecastScreenState extends State<ForecastScreen> {
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: const Color(0xFF60A5FA),
-            barWidth: 2,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: const Color(0xFF60A5FA).withOpacity(0.08),
-            ),
-          ),
-        ],
+        minX: 0,
+        maxX: maxX.toDouble(),
         minY: 0,
-        maxY: maxY * 1.2,
+        maxY: maxY,
+        extraLinesData: ExtraLinesData(
+          verticalLines: [
+            VerticalLine(
+              x: maxX.toDouble(),
+              color: AppColors.good.withOpacity(0.85),
+              strokeWidth: 2,
+            ),
+          ],
+        ),
+        lineBarsData: hasData
+            ? segmentedLineBars(
+                spots,
+                color: const Color(0xFF60A5FA),
+                barWidth: 2.5,
+                showArea: false,
+              )
+            : const [],
+        lineTouchData: LineTouchData(
+          enabled: hasData,
+          handleBuiltInTouches: hasData,
+          touchSpotThreshold: 24,
+          getTouchedSpotIndicator: (barData, spotIndexes) {
+            if (!hasData) return const <TouchedSpotIndicatorData>[];
+            return spotIndexes.map((index) {
+              return TouchedSpotIndicatorData(
+                FlLine(
+                  color: palette.textSecondary.withOpacity(0.45),
+                  strokeWidth: 1.5,
+                  dashArray: [5, 4],
+                ),
+                FlDotData(
+                  show: true,
+                  getDotPainter: (spot, percent, bar, i) =>
+                      FlDotCirclePainter(
+                    radius: 6,
+                    color: const Color(0xFF60A5FA),
+                    strokeWidth: 2,
+                    strokeColor: palette.card,
+                  ),
+                ),
+              );
+            }).toList();
+          },
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => palette.cardLight,
+            tooltipBorder: BorderSide(color: palette.border),
+            tooltipPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final idx = spot.spotIndex;
+                if (idx < 0 || idx >= slots.length) {
+                  return const LineTooltipItem('', TextStyle());
+                }
+                final slot = slots[idx];
+                return LineTooltipItem(
+                  slot.value.toStringAsFixed(2),
+                  TextStyle(
+                    color: const Color(0xFF60A5FA),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
       ),
     );
+
+    if (!hasData) {
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          chart,
+          Text(
+            l10n.forecastNoData,
+            style: TextStyle(
+              color: palette.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
+
+    return chart;
   }
 
   Widget _buildError(BuildContext context, SharedDataService service) {
@@ -812,6 +1144,26 @@ class _ForecastScreenState extends State<ForecastScreen> {
           style: TextStyle(fontSize: 9, color: context.palette.textSecondary)),
     ]);
   }
+}
+
+// ─── History chart bucket ─────────────────────────────────────────────────────
+
+class _HistorySlot {
+  final int index;
+  final DateTime start;
+  final double value;
+  final bool isCurrent;
+  final String timeLabel;
+  final bool carriedForward;
+
+  const _HistorySlot({
+    required this.index,
+    required this.start,
+    required this.value,
+    required this.isCurrent,
+    required this.timeLabel,
+    this.carriedForward = false,
+  });
 }
 
 // ─── Day Card ─────────────────────────────────────────────────────────────────
