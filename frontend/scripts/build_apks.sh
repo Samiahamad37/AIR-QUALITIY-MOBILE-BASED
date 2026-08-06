@@ -19,8 +19,12 @@ build_one() {
   local flavor="$1"
   local api_host="$2"
   local out_name="$3"
-  echo ">> Building $flavor (API_HOST=$api_host)..."
-  flutter build apk --flavor "$flavor" --release --dart-define="API_HOST=$api_host"
+  local target_platform="android-arm64"
+  if [[ "$flavor" == "emulator" ]]; then
+    target_platform="android-x64"
+  fi
+  echo ">> Building $flavor (API_HOST=$api_host, $target_platform)..."
+  flutter build apk --flavor "$flavor" --release --dart-define="API_HOST=$api_host" --target-platform "$target_platform"
   cp "build/app/outputs/flutter-apk/app-${flavor}-release.apk" "$OUT_DIR/$out_name"
   echo "   Saved: $OUT_DIR/$out_name"
 }
