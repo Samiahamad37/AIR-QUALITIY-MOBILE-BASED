@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '/screens/app_theme.dart';
 import '/Data/air_quality_data.dart';
+import 'package:air_quality_monitor/L10n/app_localizations.dart';
+import '/utils/aqi_calculator.dart';
+import '/utils/aqi_localization.dart';
+import '/utils/time_utils.dart';
 
 // ─── AQI Ring Widget ──────────────────────────────────────────────────────────
 
@@ -282,166 +286,149 @@ class AqiTrendBadge extends StatelessWidget {
   }
 }
 
-// ─── Home Today AQI Trend (interactive line chart) ───────────────────────────
+// ─── AQI Trend chart (shared by Home + Reports & Analysis) ───────────────────
 
-class HomeTodayTrendChart extends StatelessWidget {
-  final List<HourlyAqi> data;
+class AqiTrendChart extends StatelessWidget {
+  final List<Map<String, dynamic>> readings;
+  final String timeFormat;
 
-  const HomeTodayTrendChart({super.key, required this.data});
+  const AqiTrendChart({
+    super.key,
+    required this.readings,
+    this.timeFormat = 'ha',
+  });
 
-  static const _lineColor = Color(0xFF2563EB);
+  static Color _aqiColor(double aqi) {
+    if (aqi <= 50) return AppColors.good;
+    if (aqi <= 100) return AppColors.moderate;
+    if (aqi <= 150) return AppColors.sensitiveGroups;
+    if (aqi <= 200) return AppColors.unhealthy;
+    if (aqi <= 300) return AppColors.veryUnhealthy;
+    return AppColors.hazardous;
+  }
+
+  static int _readingAqi(Map<String, dynamic> reading) {
+    return AqiCalculator.fromReading(reading) ?? 0;
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    if (data.isEmpty) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    if (readings.isEmpty) return const SizedBox.shrink();
 
-    final spots = data
-        .map((e) => FlSpot(e.hourOfDay.toDouble(), e.aqi.toDouble()))
-        .toList();
+    final ordered = readings.reversed.toList();
+    final spots = ordered.asMap().entries.map((e) {
+      return FlSpot(e.key.toDouble(), _readingAqi(e.value).toDouble());
+    }).toList();
+    final maxY = spots.map((s) => s.y).reduce(max);
+    final avgAqi = spots.map((s) => s.y).reduce((a, b) => a + b) / spots.length;
+    final lineColor = _aqiColor(avgAqi);
 
-    final dataMax = data.map((h) => h.aqi).reduce(max);
-    final yMax = ((max(dataMax * 1.15, 50) / 50).ceil() * 50).clamp(50, 350);
-    final yInterval = yMax > 150 ? 50.0 : 25.0;
-
-    HourlyAqi? entryAtHour(int hour) {
-      for (final e in data) {
-        if (e.hourOfDay == hour) return e;
-      }
-      return null;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            'AQI',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: palette.textSecondary,
+    return Container(
+      height: 220,
+      padding: const EdgeInsets.fromLTRB(8, 20, 16, 8),
+      decoration: BoxDecoration(
+        color: palette.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.border),
+      ),
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) => FlLine(
+              color: palette.border.withOpacity(0.4),
+              strokeWidth: 1,
             ),
           ),
-        ),
-        SizedBox(
-          height: 220,
-          child: LineChart(
-            LineChartData(
-              gridData: FlGridData(
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 34,
+                getTitlesWidget: (val, _) => Text(
+                  val.toInt().toString(),
+                  style: TextStyle(fontSize: 9, color: palette.textMuted),
+                ),
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 22,
+                interval: (ordered.length / 4).ceilToDouble().clamp(1, 9999),
+                getTitlesWidget: (val, _) {
+                  final i = val.toInt();
+                  if (i < 0 || i >= ordered.length) {
+                    return const SizedBox.shrink();
+                  }
+                  final ts = parseApiTimestamp(ordered[i]['timestamp']);
+                  return Text(
+                    DateFormat(timeFormat).format(ts).toLowerCase(),
+                    style: TextStyle(fontSize: 9, color: palette.textMuted),
+                  );
+                },
+              ),
+            ),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: lineColor,
+              barWidth: 2.5,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
                 show: true,
-                drawVerticalLine: false,
-                horizontalInterval: yInterval,
-                getDrawingHorizontalLine: (_) => FlLine(
-                  color: palette.border.withOpacity(0.35),
-                  strokeWidth: 1,
-                ),
+                color: lineColor.withOpacity(0.1),
               ),
-              titlesData: FlTitlesData(
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 36,
-                    interval: yInterval,
-                    getTitlesWidget: (val, _) => Text(
-                      val.toInt().toString(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: palette.textSecondary,
-                      ),
+            ),
+          ],
+          minY: 0,
+          maxY: (maxY * 1.2).clamp(50, double.infinity),
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => palette.card,
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final aqi = spot.y.toInt();
+                  return LineTooltipItem(
+                    l10n.reportAqiTooltip(aqi, localizedAqiName(l10n, aqi)),
+                    TextStyle(
+                      color: palette.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
                     ),
-                  ),
-                ),
-                bottomTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false, reservedSize: 8),
-                ),
-                rightTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              ),
-              borderData: FlBorderData(show: false),
-              minX: 0,
-              maxX: 23,
-              minY: 0,
-              maxY: yMax.toDouble(),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: spots,
-                  isCurved: true,
-                  color: _lineColor,
-                  barWidth: 2.5,
-                  dotData: FlDotData(
+                  );
+                }).toList();
+              },
+            ),
+            getTouchedSpotIndicator: (barData, spotIndexes) {
+              return spotIndexes.map((index) {
+                return TouchedSpotIndicatorData(
+                  FlLine(color: lineColor, strokeWidth: 2),
+                  FlDotData(
                     show: true,
-                    getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
-                      radius: 4,
-                      color: _lineColor,
+                    getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+                      radius: 6,
+                      color: lineColor,
                       strokeWidth: 2,
                       strokeColor: palette.card,
                     ),
                   ),
-                  belowBarData: BarAreaData(show: false),
-                ),
-              ],
-              lineTouchData: LineTouchData(
-                enabled: true,
-                handleBuiltInTouches: true,
-                touchSpotThreshold: 24,
-                getTouchedSpotIndicator: (barData, spotIndexes) {
-                  return spotIndexes.map((index) {
-                    final aqi = barData.spots[index].y.toInt();
-                    return TouchedSpotIndicatorData(
-                      FlLine(
-                        color: palette.textSecondary.withOpacity(0.45),
-                        strokeWidth: 1.5,
-                        dashArray: [5, 4],
-                      ),
-                      FlDotData(
-                        show: true,
-                        getDotPainter: (spot, percent, bar, i) =>
-                            FlDotCirclePainter(
-                          radius: 7,
-                          color: getAqiLevel(aqi).color,
-                          strokeWidth: 2.5,
-                          strokeColor: palette.card,
-                        ),
-                      ),
-                    );
-                  }).toList();
-                },
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipColor: (_) => palette.cardLight,
-                  tooltipBorder: BorderSide(color: palette.border),
-                  tooltipPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  getTooltipItems: (touchedSpots) {
-                    return touchedSpots.map((spot) {
-                      final entry = entryAtHour(spot.x.toInt());
-                      if (entry == null) {
-                        return const LineTooltipItem('', TextStyle());
-                      }
-                      final level = getAqiLevel(entry.aqi);
-                      final suffix =
-                          entry.isForecast ? '\n(forecast)' : '';
-                      return LineTooltipItem(
-                        '${entry.hour}\nAQI ${entry.aqi}$suffix',
-                        TextStyle(
-                          color: level.color,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          height: 1.35,
-                        ),
-                      );
-                    }).toList();
-                  },
-                ),
-              ),
-            ),
+                );
+              }).toList();
+            },
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -566,37 +553,24 @@ class _PmForecastDualChartState extends State<PmForecastDualChart> {
             ),
           ),
           child: hasTouch
-              ? Column(
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Text(
-                      hourLabel(touched),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary,
+                      pm25Values[touched].toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.pm25Color,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Text(
-                          'PM2.5: ${pm25Values[touched].toStringAsFixed(1)} µg/m³',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.pm25Color,
-                          ),
-                        ),
-                        Text(
-                          'PM10: ${pm10Values[touched].toStringAsFixed(1)} µg/m³',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _pm10Color,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      pm10Values[touched].toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _pm10Color,
+                      ),
                     ),
                   ],
                 )
@@ -675,8 +649,29 @@ class _PmForecastDualChartState extends State<PmForecastDualChart> {
                     },
                   ),
                 ),
-                bottomTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false, reservedSize: 8),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 28,
+                    interval: 1,
+                    getTitlesWidget: (val, _) {
+                      final i = val.round();
+                      if (i < 0 || i >= points.length) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          hourLabel(i),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: palette.textSecondary,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 topTitles: const AxisTitles(
                   sideTitles: SideTitles(showTitles: false),
