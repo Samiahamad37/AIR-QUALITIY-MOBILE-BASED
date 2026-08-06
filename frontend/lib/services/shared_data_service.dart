@@ -175,7 +175,6 @@ class SharedDataService extends ChangeNotifier {
           Map<String, dynamic>.from(aqiMap['pollutants'] as Map? ?? {});
       final environment =
           Map<String, dynamic>.from(aqiMap['environment'] as Map? ?? {});
-      final hourlyData = _buildHourlyData(readingsList, predictionData);
 
       var updatedAt = parseApiTimestamp(aqiMap['timestamp']);
       if (readingsList.isNotEmpty) {
@@ -231,7 +230,7 @@ class SharedDataService extends ChangeNotifier {
             color: AppColors.so2Color,
           ),
         ],
-        hourlyData: hourlyData,
+        trendReadings: readingsList,
         aqiTrendDirection: predictionData?['trend_direction'] as String?,
         aqiTrendConfidence:
             (predictionData?['trend_confidence'] as num?)?.toDouble(),
@@ -349,114 +348,6 @@ class SharedDataService extends ChangeNotifier {
     } catch (e) {
       await fallbackToDefault();
     }
-  }
-
-  List<HourlyAqi> _buildHourlyData(
-    List<Map<String, dynamic>> readings,
-    Map<String, dynamic>? prediction,
-  ) {
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final currentHour = now.hour;
-
-    final byHour = <int, List<Map<String, dynamic>>>{};
-    for (final r in readings) {
-      final ts = parseApiTimestamp(r['timestamp']);
-      if (ts.isBefore(todayStart) || ts.isAfter(now)) continue;
-      byHour.putIfAbsent(ts.hour, () => []).add(r);
-    }
-
-    final predictionPollutants =
-        prediction?['pollutants'] as Map<String, dynamic>?;
-
-    // Map prediction API forecast slots to clock hours (future hours only).
-    final forecastByHour = <int, (double pm25, double pm10)>{};
-    if (prediction != null) {
-      final pm25Forecast =
-          List<dynamic>.from(prediction['pm25_forecast_6h'] as List? ?? []);
-      final pm10Forecast =
-          List<dynamic>.from(prediction['pm10_forecast_6h'] as List? ?? []);
-      final baseTime = parseApiTimestamp(prediction['timestamp']);
-
-      for (var i = 0; i < pm25Forecast.length && i < pm10Forecast.length; i++) {
-        final at = baseTime.add(Duration(hours: i + 1));
-        if (!at.isAfter(now)) continue;
-        if (at.year != now.year ||
-            at.month != now.month ||
-            at.day != now.day) {
-          continue;
-        }
-        final pm25 = (pm25Forecast[i] as num?)?.toDouble();
-        final pm10 = (pm10Forecast[i] as num?)?.toDouble();
-        if (pm25 == null || pm10 == null) continue;
-        forecastByHour[at.hour] = (pm25, pm10);
-      }
-    }
-
-    final result = <HourlyAqi>[];
-    // Full 24-hour day: midnight → 11pm, left to right on the chart.
-    for (var h = 0; h < 24; h++) {
-      final isFuture = h > currentHour;
-      final isCurrent = h == currentHour;
-      double? pm25;
-      double? pm10;
-
-      if (!isFuture) {
-        final bucket = byHour[h];
-        if (bucket != null && bucket.isNotEmpty) {
-          pm25 = _avgField(bucket, 'pm25');
-          pm10 = _avgField(bucket, 'pm10');
-        } else if (isCurrent && predictionPollutants != null) {
-          pm25 = (predictionPollutants['pm25'] as num?)?.toDouble();
-          pm10 = (predictionPollutants['pm10'] as num?)?.toDouble();
-        }
-      } else {
-        final forecast = forecastByHour[h];
-        if (forecast != null) {
-          pm25 = forecast.$1;
-          pm10 = forecast.$2;
-        }
-      }
-
-      if (pm25 == null && pm10 == null) continue;
-      pm25 ??= 0;
-      pm10 ??= 0;
-
-      result.add(HourlyAqi(
-        hour: _formatHour(DateTime(now.year, now.month, now.day, h)),
-        hourOfDay: h,
-        aqi: _aqiFromPm(pm25, pm10),
-        isCurrent: isCurrent,
-        isForecast: isFuture,
-        pm25: pm25,
-        pm10: pm10,
-      ));
-    }
-
-    return result;
-  }
-
-  double? _avgField(List<Map<String, dynamic>> rows, String key) {
-    final values = rows
-        .map((r) => (r[key] as num?)?.toDouble())
-        .whereType<double>()
-        .where((v) => v >= 0)
-        .toList();
-    if (values.isEmpty) return null;
-    return values.reduce((a, b) => a + b) / values.length;
-  }
-
-  String _formatHour(DateTime dt) {
-    final h = dt.hour;
-    final meridiem = h < 12 ? 'am' : 'pm';
-    final hourDisplay = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-    return '$hourDisplay$meridiem';
-  }
-
-  int _aqiFromPm(double pm25, double pm10) {
-    final fromPm25 = (pm25 / 35 * 100).round().clamp(0, 500);
-    final fromPm10 = (pm10 / 150 * 100).round().clamp(0, 500);
-    return fromPm25 > fromPm10 ? fromPm25 : fromPm10;
   }
 }
 
