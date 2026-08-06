@@ -147,19 +147,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // ─── Today's AQI Trend ────────────────────────────────────
-                  if (data.hourlyData.isNotEmpty) ...[
+                  // ─── AQI Trend (same chart as Reports & Analysis) ─────────
+                  if (data.trendReadings.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: SectionHeader(
-                          title: AppLocalizations.of(context).homeTodayTrend),
+                          title: AppLocalizations.of(context).reportAqiTrend),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: GlassCard(
-                          padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-                          child: HomeTodayTrendChart(data: data.hourlyData),
-                        ),
+                        child: AqiTrendChart(readings: data.trendReadings),
                       ),
                     ),
                   ],
