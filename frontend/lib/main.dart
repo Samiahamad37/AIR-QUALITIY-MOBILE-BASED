@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
@@ -16,19 +15,16 @@ import '/services/shared_data_service.dart';
 import '/services/auth_service.dart';
 import '/services/notification_service.dart';
 
-Future<void> _configureGoogleMaps() async {
-  if (kIsWeb) return;
-  final mapsPlatform = GoogleMapsFlutterPlatform.instance;
-  if (mapsPlatform is GoogleMapsFlutterAndroid) {
-    // TextureView tends to work better than Hybrid Composition on emulators.
-    mapsPlatform.useAndroidViewSurface = false;
-    await mapsPlatform.initializeWithRenderer(AndroidMapRenderer.latest);
-  }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _configureGoogleMaps();
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    final mapsPlatform = GoogleMapsFlutterPlatform.instance;
+    if (mapsPlatform is GoogleMapsFlutterAndroid) {
+      // Hybrid Composition avoids blank maps on real Android devices.
+      mapsPlatform.useAndroidViewSurface = true;
+      await mapsPlatform.initializeWithRenderer(AndroidMapRenderer.latest);
+    }
+  }
   if (!kIsWeb) {
     await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
