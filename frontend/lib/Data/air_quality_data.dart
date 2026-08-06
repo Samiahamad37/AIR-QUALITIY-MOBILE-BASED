@@ -108,28 +108,6 @@ class Pollutant {
       maxSafe > 0 ? (value / maxSafe).clamp(0.0, 1.0) : 0.0;
 }
 
-// ─── Hourly AQI Data ──────────────────────────────────────────────────────────
-
-class HourlyAqi {
-  final String hour;
-  final int hourOfDay;
-  final int aqi;
-  final bool isCurrent;
-  final bool isForecast;
-  final double? pm25;
-  final double? pm10;
-
-  const HourlyAqi({
-    required this.hour,
-    required this.hourOfDay,
-    required this.aqi,
-    this.isCurrent = false,
-    this.isForecast = false,
-    this.pm25,
-    this.pm10,
-  });
-}
-
 // ─── Air Quality Data Model ───────────────────────────────────────────────────
 
 class AirQualityData {
@@ -138,7 +116,8 @@ class AirQualityData {
   final String district;
   final DateTime updatedAt;
   final List<Pollutant> pollutants;
-  final List<HourlyAqi> hourlyData;
+  /// Raw sensor readings for the AQI trend chart (newest first from API).
+  final List<Map<String, dynamic>> trendReadings;
   final double temperature;
   final double humidity;
   final double windSpeed;
@@ -151,7 +130,7 @@ class AirQualityData {
     required this.district,
     required this.updatedAt,
     required this.pollutants,
-    required this.hourlyData,
+    required this.trendReadings,
     required this.temperature,
     required this.humidity,
     required this.windSpeed,
