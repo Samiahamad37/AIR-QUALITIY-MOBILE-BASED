@@ -17,17 +17,24 @@ abstract class MapLayerHandle {
   void dispose();
 }
 
-const mapInitialPosition = LatLng(-6.7688, 39.2397);
+/// Default map center — midpoint between both sensor sites.
+const mapInitialPosition = LatLng(-6.768775, 39.22032);
+
+/// Planning building sensor (planing-building).
+const mapPlanningPosition = LatLng(-6.76375, 39.21444);
+
+/// Lands / panning area sensor (lands-building).
+const mapPanningPosition = LatLng(-6.7738, 39.2262);
 
 const mapDevices = [
   MapDeviceLocation(
     deviceId: 'lands-building',
     label: 'Lands Building',
-    position: LatLng(-6.7690, 39.2400),
+    position: mapPanningPosition,
   ),
   MapDeviceLocation(
     deviceId: 'planing-building',
     label: 'Planing Building',
-    position: LatLng(-6.7720, 39.2380),
+    position: mapPlanningPosition,
   ),
 ];
