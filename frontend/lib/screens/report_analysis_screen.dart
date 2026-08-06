@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:pdf/pdf.dart';
@@ -10,10 +9,12 @@ import 'dart:convert';
 import '/Data/air_quality_data.dart';
 import '/services/api_service.dart';
 import '/screens/app_theme.dart';
+import '/widgets/common_widget.dart';
 import '/services/auth_service.dart';
 import '/services/shared_data_service.dart';
 import '/L10n/app_localizations.dart';
 import '/utils/device_labels.dart';
+import '/utils/aqi_calculator.dart';
 import '/utils/time_utils.dart';
 import '/utils/report_exporter.dart';
 import '/utils/aqi_localization.dart';
@@ -299,13 +300,7 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   // ── AQI helpers (consistent with SharedDataService) ──────────────────────────
 
   int _quickAqi(Map<String, dynamic> r) {
-    final pm25 = (r['pm25'] as num?)?.toDouble() ?? 0;
-    final pm10 = (r['pm10'] as num?)?.toDouble() ?? 0;
-    final nox = (r['nox'] as num?)?.toDouble() ?? 0;
-    final a = (pm25 / 35 * 100).round().clamp(0, 500);
-    final b = (pm10 / 150 * 100).round().clamp(0, 500);
-    final c = (nox / 0.1 * 100).round().clamp(0, 500);
-    return [a, b, c].reduce((x, y) => x > y ? x : y);
+    return AqiCalculator.fromReading(r) ?? 0;
   }
 
   double _avg(Iterable<num> values) {
@@ -696,110 +691,9 @@ class _ReportAnalysisScreenState extends State<ReportAnalysisScreen> {
   }
 
   Widget _chartCard(AppPalette palette) {
-    final l10n = AppLocalizations.of(context);
-    final ordered = _readings.reversed.toList();
-    final spots = ordered.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), _quickAqi(e.value).toDouble());
-    }).toList();
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    final avgAqi = _avg(spots.map((s) => s.y));
-
-    // Color based on AQI level
-    Color _getAqiColor(double aqi) {
-      if (aqi <= 50) return AppColors.good;
-      if (aqi <= 100) return AppColors.moderate;
-      if (aqi <= 150) return AppColors.sensitiveGroups;
-      if (aqi <= 200) return AppColors.unhealthy;
-      if (aqi <= 300) return AppColors.veryUnhealthy;
-      return AppColors.hazardous;
-    }
-
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.fromLTRB(8, 20, 16, 8),
-      decoration: BoxDecoration(
-        color: palette.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.border),
-      ),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            getDrawingHorizontalLine: (_) => FlLine(
-              color: palette.border.withOpacity(0.4),
-              strokeWidth: 1,
-            ),
-          ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 34,
-                getTitlesWidget: (val, _) => Text(
-                  val.toInt().toString(),
-                  style: TextStyle(fontSize: 9, color: palette.textMuted),
-                ),
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: (ordered.length / 4).ceilToDouble().clamp(1, 9999),
-                getTitlesWidget: (val, _) {
-                  final i = val.toInt();
-                  if (i < 0 || i >= ordered.length) return const SizedBox();
-                  final ts = parseApiTimestamp(ordered[i]['timestamp']);
-                  final fmt = _period == '24H' ? 'ha' : 'd/M';
-                  return Text(
-                    DateFormat(fmt).format(ts).toLowerCase(),
-                    style: TextStyle(fontSize: 9, color: palette.textMuted),
-                  );
-                },
-              ),
-            ),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: spots,
-              isCurved: true,
-              color: _getAqiColor(avgAqi),
-              barWidth: 2.5,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                color: _getAqiColor(avgAqi).withOpacity(0.1),
-              ),
-            ),
-          ],
-          minY: 0,
-          maxY: (maxY * 1.2).clamp(50, double.infinity),
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (touchedSpot) => palette.card,
-              getTooltipItems: (touchedSpots) {
-                return touchedSpots.map((spot) {
-                  final aqi = spot.y.toInt();
-                  return LineTooltipItem(
-                    l10n.reportAqiTooltip(aqi, localizedAqiName(l10n, aqi)),
-                    TextStyle(
-                      color: palette.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
-                    ),
-                  );
-                }).toList();
-              },
-            ),
-          ),
-        ),
-      ),
+    return AqiTrendChart(
+      readings: _readings,
+      timeFormat: _period == '24H' ? 'ha' : 'd/M',
     );
   }
 
